@@ -35,7 +35,6 @@ public class ReadExcelFile {
 
             for (int i = 1; i <= lastRow; i++) {
                 Row dataRow = sheet.getRow(i);
-
                 if (dataRow != null) {
                     data.add(getRowData(dataRow, columnNames));
                 }
@@ -66,13 +65,11 @@ public class ReadExcelFile {
             }
         }
 
-
         for (int i = 0; i <= maxColNum; i++) {
             Cell cell = headerRow.getCell(i);
             String columnName = null;
 
             if (cell != null) {
-
                 DataFormatter formatter = new DataFormatter();
                 columnName = formatter.formatCellValue(cell);
             }
@@ -84,7 +81,7 @@ public class ReadExcelFile {
                 columnName = columnName.trim();
             }
 
-
+            //Ensure unique column names by adding suffix if duplicate
             String originalColumnName = columnName;
             int counter = 1;
             while (columnNames.contains(columnName)) {
@@ -106,10 +103,8 @@ public class ReadExcelFile {
      * (with inferred data types).
      */
     private static Map<String, Object> getRowData(Row dataRow, List<String> columnNames) {
-
         Map<String, Object> rowData = new LinkedHashMap<>();
         for (int i = 0; i < columnNames.size(); i++) {
-
             Cell cell = dataRow.getCell(i);
             rowData.put(columnNames.get(i), getCellValue(cell));
         }
@@ -117,10 +112,47 @@ public class ReadExcelFile {
     }
 
     /**
+     * Helper method to handle numeric cell values, including date formatting.
+     * @param cell The cell to read.
+     * @return The cell value as an Integer, Double, or String (for dates).
+     */
+    private static Object getNumericCellValue(Cell cell) {
+        if (DateUtil.isCellDateFormatted(cell)) {
+            return cell.getLocalDateTimeCellValue().toString();
+        } else {
+            double numericValue = cell.getNumericCellValue();
+            if (numericValue == Math.floor(numericValue) && !Double.isInfinite(numericValue)) {
+                return (int) numericValue;
+            } else {
+                return numericValue;
+            }
+        }
+    }
+
+    /**
+     * Helper method to handle string cell values safely.
+     * @param cell The cell to read.
+     * @return The trimmed string value, or null if empty/whitespace.
+     */
+    private static String getStringCellValue(Cell cell) {
+        String value = cell.getStringCellValue();
+        return (value != null) ? value.trim() : null;
+    }
+
+    /**
+     * Helper method to handle boolean cell values.
+     * @param cell The cell to read.
+     * @return The boolean value.
+     */
+    private static Boolean getBooleanCellValue(Cell cell) {
+        return cell.getBooleanCellValue();
+    }
+
+    /**
      * Gets the value of a cell and attempts to determine its data type.
      *
      * @param cell The cell to read.
-     * @return The cell value as a String, Integer, Double, Boolean, or LocalDateTime (as String).
+     * @return The cell value as a String, Integer, Double, Boolean, or LocalDateTime (as String), or null.
      */
     private static Object getCellValue(Cell cell) {
         if (cell == null) {
@@ -129,43 +161,21 @@ public class ReadExcelFile {
 
         switch (cell.getCellType()) {
             case STRING:
-                return cell.getStringCellValue().trim();
+                return getStringCellValue(cell);
             case NUMERIC:
-
-                if (DateUtil.isCellDateFormatted(cell)) {
-
-                    return cell.getLocalDateTimeCellValue().toString();
-                } else {
-                    double numericValue = cell.getNumericCellValue();
-
-                    if (numericValue == Math.floor(numericValue) && !Double.isInfinite(numericValue)) {
-                        return (int) numericValue;
-                    } else {
-                        return numericValue;
-                    }
-                }
+                return getNumericCellValue(cell);
             case BOOLEAN:
-                return cell.getBooleanCellValue();
+                return getBooleanCellValue(cell);
             case FORMULA:
 
                 switch (cell.getCachedFormulaResultType()) {
                     case STRING:
-                        return cell.getStringCellValue().trim();
+                        return getStringCellValue(cell);
                     case NUMERIC:
-                        if (DateUtil.isCellDateFormatted(cell)) {
-                            return cell.getLocalDateTimeCellValue().toString();
-                        } else {
-                            double numericValue = cell.getNumericCellValue();
-                            if (numericValue == Math.floor(numericValue) && !Double.isInfinite(numericValue)) {
-                                return (int) numericValue;
-                            } else {
-                                return numericValue;
-                            }
-                        }
+                        return getNumericCellValue(cell);
                     case BOOLEAN:
-                        return cell.getBooleanCellValue();
+                        return getBooleanCellValue(cell);
                     case ERROR:
-                        return null;
                     case BLANK:
                         return null;
                     default:
@@ -177,7 +187,6 @@ public class ReadExcelFile {
                         }
                 }
             case BLANK:
-                return null;
             case ERROR:
                 return null;
             default:
