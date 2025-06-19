@@ -1,5 +1,4 @@
 import java.util.ArrayList;
-import java.util.HashMap; // Still imported, but LinkedHashMap is preferred for row maps
 import java.util.List;
 import java.util.Map;
 import java.util.LinkedHashMap; // Explicitly used for row maps
@@ -42,9 +41,8 @@ public class Normalizer {
 
         // Pass 2: Apply column-splitting heuristics (e.g., quantity-item, parenthetical alias)
         // This pass modifies columns within existing rows.
-        List<Map<String, Object>> fullyNormalizedData = applyColumnSplittingHeuristics(afterRowSplitting);
 
-        return fullyNormalizedData;
+        return applyColumnSplittingHeuristics(afterRowSplitting);
     }
 
     /**
@@ -64,8 +62,7 @@ public class Normalizer {
                 String originalColumnName = entry.getKey();
                 Object cellValue = entry.getValue();
 
-                if (cellValue instanceof String) {
-                    String stringValue = (String) cellValue;
+                if (cellValue instanceof String stringValue) {
                     String trimmedStringValue = stringValue.trim();
 
                     // Heuristic 1: Comma-separated values (ROW SPLITTING)
@@ -125,8 +122,7 @@ public class Normalizer {
                 Object cellValue = entry.getValue();
 
                 // Only apply these heuristics if the value is a String
-                if (cellValue instanceof String) {
-                    String stringValue = (String) cellValue;
+                if (cellValue instanceof String stringValue) {
                     String trimmedStringValue = stringValue.trim();
 
                     // Heuristic 2: Quantity Item (COLUMN SPLITTING)
