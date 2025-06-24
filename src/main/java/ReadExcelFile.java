@@ -188,7 +188,6 @@ public class ReadExcelFile {
                 }
             case BLANK:
             case ERROR:
-                return null;
             default:
                 return null;
         }
