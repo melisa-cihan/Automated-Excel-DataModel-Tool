@@ -38,36 +38,34 @@ public class SqlGenerator {
 
     /**
      * Determines the most appropriate SQL data type for a given Java object value.
-     *
+     * Uses a switch expression for cleaner type checking.
      * @param value The Java object value.
      * @return A string representing the SQL data type (e.g., "INT", "VARCHAR(255)").
      */
     private static String getSqlType(Object value) {
         if (value == null) {
             return "VARCHAR(255)"; // Default for null, will be promoted if other non-null values appear
-        } else if (value instanceof Integer) {
-            return "INT";
-        } else if (value instanceof Double) {
-            return "DOUBLE"; // More general than FLOAT, can be DECIMAL for financial data
-        } else if (value instanceof Boolean) {
-            return "BOOLEAN"; // Standard SQL boolean, can be TINYINT(1) for some databases
-        } else if (value instanceof String) {
-            String strValue = (String) value;
-            // Check for date/datetime patterns in strings (from DateUtil.getLocalDateTimeCellValue().toString())
-            if (SQL_DATE_PATTERN.matcher(strValue).matches()) {
-                // If it contains time (THH:MM:SS), use DATETIME or TIMESTAMP
-                if (strValue.contains("T")) {
-                    return "DATETIME"; // Or TIMESTAMP
-                }
-                return "DATE";
-            }
-            // Add other string-based type detection if needed (e.g., check for UUIDs, specific enums)
-            return "VARCHAR(255)"; // Default string length. Adjust as needed or implement length inference.
-        } else if (value instanceof LocalDateTime) { // Though we return String from reader for dates, this is a fallback
-            return "DATETIME";
         }
-        return "VARCHAR(255)"; // Fallback for any other unexpected Java types
+
+        return switch (value) {
+            case Integer ignored -> "INT";
+            case Double ignored -> "DOUBLE";
+            case Boolean ignored -> "BOOLEAN";
+            case String strValue -> { // Pattern variable 'strValue' automatically casts 'value' to String
+                // Check for date/datetime patterns within the string
+                if (SQL_DATE_PATTERN.matcher(strValue).matches()) {
+                    if (strValue.contains("T")) {
+                        yield "DATETIME"; // 'yield' is used in switch expressions to return a value
+                    }
+                    yield "DATE";
+                }
+                yield "VARCHAR(255)"; // Default for other strings
+            }
+            case LocalDateTime ignored -> "DATETIME"; // Handle LocalDateTime objects directly if they somehow appear
+            default -> "VARCHAR(255)"; // Fallback for any other unexpected Java types
+        };
     }
+
 
     /**
      * Promotes a SQL data type to a more general one if a conflicting type is found.
@@ -204,16 +202,15 @@ public class SqlGenerator {
     private static String formatSqlValue(Object value) {
         if (value == null) {
             return "NULL";
-        } else if (value instanceof String) {
-            // Escape single quotes by doubling them for SQL
-            return "'" + ((String) value).replace("'", "''") + "'";
-        } else if (value instanceof Boolean) {
-            // SQL boolean values typically are TRUE or FALSE, or 1 or 0
-            return ((Boolean) value) ? "TRUE" : "FALSE";
-        } else if (value instanceof Number) {
-            return value.toString(); // Numbers are directly converted to string
         }
-        // Fallback for any other types, convert to string and quote
-        return "'" + value.toString().replace("'", "''") + "'";
+        // Use switch expression for cleaner type checking and formatting
+        return switch (value) {
+            case String strValue -> "'" + strValue.replace("'", "''") + "'";
+            case Boolean boolValue -> boolValue ? "TRUE" : "FALSE";
+            case Number numValue -> numValue.toString(); // Integer, Double, etc. are all Numbers
+            // Fallback for any other types, convert to string and quote.
+            // This catches types like LocalDateTime if they aren't handled by specific cases.
+            default -> "'" + value.toString().replace("'", "''") + "'";
+        };
     }
 }
