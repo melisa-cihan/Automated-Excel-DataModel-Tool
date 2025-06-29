@@ -8,6 +8,7 @@ import normalizer.heuristics.HeuristicRule;
 import normalizer.heuristics.QuantityItemHeuristic;
 import normalizer.heuristics.ValueUnitHeuristic;
 import normalizer.heuristics.ParentheticalAliasHeuristic;
+import normalizer.heuristics.CurrencyHeuristic;
 
 
 public class Normalizer {
@@ -24,10 +25,12 @@ public class Normalizer {
      * For instance, a more specific pattern should typically come before a more general one.
      */
     private static final List<HeuristicRule> COLUMN_SPLITTING_RULES = List.of(
+            new CurrencyHeuristic(),          // Next, specific for currency values
             new QuantityItemHeuristic(),      // E.g., "2 books" - very specific pattern
             new ValueUnitHeuristic(),         // E.g., "50 kg" - more general number-unit
             new ParentheticalAliasHeuristic() // E.g., "Name (Alias)"
-            // Add new column-splitting heuristics here
+            // Add new column-splitting heuristics here,
+            //the order of the rules plays a role
     );
 
 
