@@ -1,10 +1,14 @@
+package normalizer.heuristics;
+
+import normalizer.heuristics.HeuristicRule;
+
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
  * Heuristic rule to split a string like "2 books" into Quantity and Item columns.
- * Implements the HeuristicRule interface.
+ * Implements the normalizer.heuristics.HeuristicRule interface.
  */
 public class QuantityItemHeuristic implements HeuristicRule {
     private static final Pattern NUMERIC_PREFIX_PATTERN = Pattern.compile("^(\\d+)\\s+(.*)$", Pattern.CASE_INSENSITIVE);

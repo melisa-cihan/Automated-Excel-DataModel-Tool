@@ -1,3 +1,5 @@
+package normalizer.heuristics;
+
 import java.util.Map;
 public interface HeuristicRule {
 
