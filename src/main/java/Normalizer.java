@@ -5,22 +5,32 @@ import java.util.LinkedHashMap; // Explicitly used for row maps
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import normalizer.heuristics.HeuristicRule;
+import normalizer.heuristics.QuantityItemHeuristic;
+import normalizer.heuristics.ValueUnitHeuristic;
+import normalizer.heuristics.ParentheticalAliasHeuristic;
+
 
 public class Normalizer {
 
-    // --- Heuristic Definitions ---
+    // --- Heuristic Definitions (only for row splitting, column splitting now uses rules)---
 
     // Heuristic 1: Comma-separated values (leads to ROW SPLITTING)
     // Example: "green,yellow" -> becomes two rows
     private static final Pattern COMMA_SEPARATED_PATTERN = Pattern.compile(",");
 
-    // Heuristic 2: Quantity Item (leads to COLUMN SPLITTING)
-    // Example: "2 books" -> "Product_Quantity": 2, "Product_Item": "books"
-    private static final Pattern NUMERIC_PREFIX_PATTERN = Pattern.compile("^(\\d+)\\s+(.*)$", Pattern.CASE_INSENSITIVE);
+    /**
+     * This list defines the order in which column-splitting heuristics are applied.
+     * The order can be crucial as some heuristics might take precedence over others.
+     * For instance, a more specific pattern should typically come before a more general one.
+     */
+    private static final List<HeuristicRule> COLUMN_SPLITTING_RULES = List.of(
+            new QuantityItemHeuristic(),      // E.g., "2 books" - very specific pattern
+            new ValueUnitHeuristic(),         // E.g., "50 kg" - more general number-unit
+            new ParentheticalAliasHeuristic() // E.g., "Name (Alias)"
+            // Add new column-splitting heuristics here
+    );
 
-    // Heuristic 3: Parenthetical Alias/Detail (leads to COLUMN SPLITTING)
-    // Example: "IBA (ehemals BQL)" -> "Schülergruppe_Primary": "IBA", "Schülergruppe_Alias": "ehemals BQL"
-    private static final Pattern PARENTHETICAL_ALIAS_PATTERN = Pattern.compile("^(.*?)\\s*\\((.*?)\\)$");
 
 
     /**
@@ -105,7 +115,8 @@ public class Normalizer {
 
     /**
      * Applies heuristics that lead to splitting values within a column into new columns.
-     * This pass does not change the number of rows.
+     * This pass does not change the number of rows and uses a list of HeuristicRule objects for extensibility and cleaner code.
+     *
      *
      * @param inputData The list of rows (already processed for row-splitting) to process.
      * @return A new list of rows with columns potentially expanded.
@@ -122,41 +133,28 @@ public class Normalizer {
                 String originalColumnName = entry.getKey();
                 Object cellValue = entry.getValue();
 
-                // Only apply these heuristics if the value is a String
-                if (cellValue instanceof String stringValue) {
-                    String trimmedStringValue = stringValue.trim();
+                boolean heuristicApplied = false; // Flag to track if any heuristic successfully processed the value
 
-                    // Heuristic 2: Quantity Item (COLUMN SPLITTING)
-                    Matcher numericMatcher = NUMERIC_PREFIX_PATTERN.matcher(trimmedStringValue);
-                    if (numericMatcher.find()) {
-                        try {
-                            String quantityColumnName = originalColumnName + "_Quantity";
-                            String itemColumnName = originalColumnName + "_Item";
-                            newRow.put(quantityColumnName, Integer.parseInt(numericMatcher.group(1)));
-                            newRow.put(itemColumnName, numericMatcher.group(2).trim());
-                        } catch (NumberFormatException e) {
-                            // If parsing fails (e.g., "Five shirts"), treat as a regular string
-                            newRow.put(originalColumnName, stringValue);
+                // Only apply column-splitting heuristics if the value is a String
+                if (cellValue instanceof String) { // No need for 'stringValue' variable here, pass 'cellValue' directly to apply
+                    // Iterate through the predefined list of HeuristicRules.
+                    // The order of rules in the list defines their application priority.
+                    for (HeuristicRule rule : COLUMN_SPLITTING_RULES) {
+                        // Attempt to apply the current rule.
+                        // If 'rule.apply()' returns true, it means the rule processed the value
+                        // and added its results to 'newRow'. No other rule needs to be tried for this cell.
+                        if (rule.apply(originalColumnName, cellValue, newRow)) {
+                            heuristicApplied = true;
+                            break; // Stop trying rules for this cell, move to the next original column.
                         }
                     }
-                    // Heuristic 3: Parenthetical Alias/Detail (COLUMN SPLITTING)
-                    else {
-                        Matcher aliasMatcher = PARENTHETICAL_ALIAS_PATTERN.matcher(trimmedStringValue);
-                        if (aliasMatcher.find()) {
-                            String primaryNameColumn = originalColumnName + "_Primary";
-                            String aliasColumn = originalColumnName + "_Alias";
-                            newRow.put(primaryNameColumn, aliasMatcher.group(1).trim());
-                            newRow.put(aliasColumn, aliasMatcher.group(2).trim());
-                        }
-                        // If no column-splitting heuristic applies, keep the original string value
-                        else {
-                            newRow.put(originalColumnName, stringValue);
-                        }
-                    }
-                } else {
-                    // If the cell value is not a string (e.g., Integer, Double, Boolean, null), add it as is
+                }
+                // If no heuristic was applied (either because it wasn't a String, or no rule matched),
+                // then simply add the original column and its value to the new row as is.
+                if (!heuristicApplied) {
                     newRow.put(originalColumnName, cellValue);
                 }
+
             }
             outputData.add(newRow);
         }
