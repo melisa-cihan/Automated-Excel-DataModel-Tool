@@ -50,7 +50,7 @@ public class Normalizer {
         }
 
         // Pass 1: Apply row-splitting heuristics (e.g., comma-separated values)
-        // This pass will now generate a Cartesian product for multiple multi-valued columns.
+        // This pass will now generate a Cartesian product for multiple multivalued columns.
         List<Map<String, Object>> afterRowSplitting = applyRowSplittingHeuristics(rawData);
 
         // Pass 2: Apply column-splitting heuristics (e.g., quantity-item, parenthetical alias)
@@ -136,7 +136,7 @@ public class Normalizer {
     }
 
     /**
-     * Recursive helper method to generate the Cartesian product of multi-valued columns.
+     * Recursive helper method to generate the Cartesian product of multivalued columns.
      *
      * @param multiValueColumns The map of column names to lists of their split values.
      * @param currentProductRow The partial row being built during recursion.
