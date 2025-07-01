@@ -1,5 +1,6 @@
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Collections;
 import java.util.Map;
 import java.util.LinkedHashMap; // Explicitly used for row maps
 import java.util.regex.Pattern;
@@ -33,8 +34,6 @@ public class Normalizer {
             //the order of the rules plays a role
     );
 
-
-
     /**
      * Normalizes a list of maps (representing Excel data) into the First Normal Form (1NF)
      * using automated heuristics. This robust version handles both row-splitting
@@ -49,28 +48,33 @@ public class Normalizer {
         }
 
         // Pass 1: Apply row-splitting heuristics (e.g., comma-separated values)
-        // This pass might increase the number of rows.
+        // This pass will now generate a Cartesian product for multiple multi-valued columns.
         List<Map<String, Object>> afterRowSplitting = applyRowSplittingHeuristics(rawData);
 
         // Pass 2: Apply column-splitting heuristics (e.g., quantity-item, parenthetical alias)
         // This pass modifies columns within existing rows.
-
         return applyColumnSplittingHeuristics(afterRowSplitting);
     }
 
     /**
-     * Applies heuristics that lead to splitting a single row into multiple rows.
+     * Applies heuristics that lead to splitting a single row into multiple rows,
+     * generating a Cartesian product if multiple columns in the same row need splitting.
      *
      * @param inputData The list of rows to process.
-     * @return A new list of rows, potentially larger than inputData if splits occurred.
+     * @return A new list of rows, potentially much larger than inputData if splits occurred.
      */
     private static List<Map<String, Object>> applyRowSplittingHeuristics(List<Map<String, Object>> inputData) {
         List<Map<String, Object>> outputData = new ArrayList<>();
 
         for (Map<String, Object> originalRow : inputData) {
-            boolean rowWasSplit = false;
+            // Map to store columns that contain multiple values and their split parts.
+            // Keys are column names, values are lists of split parts.
+            Map<String, List<String>> multiValueColumns = new LinkedHashMap<>();
 
-            // Iterate through each column to see if it triggers a row split
+            // List to store names of columns that are *not* split for row expansion.
+            List<String> singleValueColumnNames = new ArrayList<>();
+
+            // First pass: Identify all columns in the current row that need row splitting
             for (Map.Entry<String, Object> entry : originalRow.entrySet()) {
                 String originalColumnName = entry.getKey();
                 Object cellValue = entry.getValue();
@@ -78,42 +82,100 @@ public class Normalizer {
                 if (cellValue instanceof String stringValue) {
                     String trimmedStringValue = stringValue.trim();
 
-                    // Heuristic 1: Comma-separated values (ROW SPLITTING)
-                    // Check if it *contains* a comma, not just if it *is* a comma
+                    // Check for comma-separated pattern (or other row-splitting patterns)
                     if (COMMA_SEPARATED_PATTERN.matcher(trimmedStringValue).find()) {
-                        String[] parts = trimmedStringValue.split(COMMA_SEPARATED_PATTERN.pattern()); // Use the pattern for splitting
-                        rowWasSplit = true; // Mark that this row will generate multiple new rows
-
+                        String[] parts = trimmedStringValue.split(COMMA_SEPARATED_PATTERN.pattern());
+                        List<String> trimmedParts = new ArrayList<>();
                         for (String part : parts) {
-                            // Create a new LinkedHashMap for each part to maintain order
-                            Map<String, Object> newRow = new LinkedHashMap<>();
-                            // Copy all columns from the original row EXCEPT the one being split
-                            // Ensure order is maintained by iterating over originalRow's entry set
-                            for (Map.Entry<String, Object> originalEntry : originalRow.entrySet()) {
-                                if (!originalEntry.getKey().equals(originalColumnName)) {
-                                    newRow.put(originalEntry.getKey(), originalEntry.getValue());
-                                }
-                            }
-                            // Set the current part as the atomic value for the original column
-                            newRow.put(originalColumnName, part.trim());
-                            outputData.add(newRow); // Add the new row to the output list
+                            trimmedParts.add(part.trim());
                         }
-                        // IMPORTANT: Once a column triggers a row split for this originalRow,
-                        // we stop processing this originalRow's columns for row-splitting.
-                        // The newly created rows will be processed in the next pass for column splitting.
-                        break; // Exit the inner loop (column iteration) for this originalRow
+                        multiValueColumns.put(originalColumnName, trimmedParts);
+                    } else {
+                        // This column is not a multi-value string for row splitting
+                        singleValueColumnNames.add(originalColumnName);
                     }
+                } else {
+                    // Non-string values also don't trigger row splitting
+                    singleValueColumnNames.add(originalColumnName);
                 }
             }
 
-            // If no column in the originalRow triggered a row split, add the originalRow as is
-            // Note: originalRow is already a LinkedHashMap from ReadExcelFileGemini
-            if (!rowWasSplit) {
+            // If no columns needed row splitting, add the original row as is
+            if (multiValueColumns.isEmpty()) {
                 outputData.add(originalRow);
+            } else {
+                // If there are multi-value columns, generate their Cartesian product
+                List<Map<String, Object>> generatedRows = new ArrayList<>();
+                // Call the recursive helper to build the Cartesian product
+                generateCartesianProductRecursive(
+                        multiValueColumns,                  // Columns that need to be expanded
+                        new LinkedHashMap<>(),              // Current partial row being built (starts empty)
+                        new ArrayList<>(multiValueColumns.keySet()), // Keys to iterate through
+                        0,                                  // Current key index
+                        generatedRows                       // List to add the final product rows to
+                );
+
+                // For each generated row from the Cartesian product, populate non-split columns
+                for (Map<String, Object> generatedRow : generatedRows) {
+                    Map<String, Object> finalNewRow = new LinkedHashMap<>();
+                    // First, add the non-split columns in their original order
+                    for (String colName : originalRow.keySet()) { // Iterate originalRow keys to preserve order
+                        if (singleValueColumnNames.contains(colName)) {
+                            finalNewRow.put(colName, originalRow.get(colName));
+                        }
+                    }
+                    // Then, add the values from the Cartesian product for the split columns
+                    finalNewRow.putAll(generatedRow);
+                    outputData.add(finalNewRow);
+                }
             }
         }
         return outputData;
     }
+
+    /**
+     * Recursive helper method to generate the Cartesian product of multi-valued columns.
+     *
+     * @param multiValueColumns The map of column names to lists of their split values.
+     * @param currentProductRow The partial row being built during recursion.
+     * @param columnKeys A list of column names (keys) from multiValueColumns to iterate through.
+     * @param keyIndex The current index in columnKeys being processed.
+     * @param resultRows The list to which the final Cartesian product rows will be added.
+     */
+    private static void generateCartesianProductRecursive(
+            Map<String, List<String>> multiValueColumns,
+            Map<String, Object> currentProductRow,
+            List<String> columnKeys,
+            int keyIndex,
+            List<Map<String, Object>> resultRows) {
+
+        // Base case: If we have processed all multi-value columns, a complete row is formed.
+        if (keyIndex == columnKeys.size()) {
+            resultRows.add(new LinkedHashMap<>(currentProductRow)); // Add a copy of the completed row
+            return;
+        }
+
+        // Recursive step: Get the current column to process
+        String currentColumnName = columnKeys.get(keyIndex);
+        List<String> values = multiValueColumns.getOrDefault(currentColumnName, Collections.emptyList());
+
+        // Iterate through each value in the current column's list
+        for (String value : values) {
+            currentProductRow.put(currentColumnName, value); // Add the current value to the row
+            // Recurse for the next column
+            generateCartesianProductRecursive(
+                    multiValueColumns,
+                    currentProductRow,
+                    columnKeys,
+                    keyIndex + 1, // Move to the next column
+                    resultRows
+            );
+            // Backtrack: Remove the current column's value for the next iteration (important for LinkedHashMap)
+            // This ensures currentProductRow is clean for sibling recursive calls.
+            currentProductRow.remove(currentColumnName);
+        }
+    }
+
 
     /**
      * Applies heuristics that lead to splitting values within a column into new columns.
