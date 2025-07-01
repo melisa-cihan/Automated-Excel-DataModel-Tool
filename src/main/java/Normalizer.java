@@ -16,9 +16,11 @@ public class Normalizer {
 
     // --- Heuristic Definitions (only for row splitting, column splitting now uses rules)---
 
-    // Heuristic 1: Comma-separated values (leads to ROW SPLITTING)
-    // Example: "green,yellow" -> becomes two rows
-    private static final Pattern COMMA_SEPARATED_PATTERN = Pattern.compile(",");
+    // Heuristic 1: Common delimiters for row splitting (comma, semicolon, newline, pipe)
+    // Example: "green,yellow" or "red;blue" or "item1\nitem2" or "alpha|beta" -> becomes multiple rows
+    // Using Pattern.quote for literal characters, or escaping regex special characters.
+    // \\R matches any Unicode newline sequence.
+    private static final Pattern ROW_SPLITTING_DELIMITERS = Pattern.compile("[,;|\\n\\r]");
 
     /**
      * This list defines the order in which column-splitting heuristics are applied.
@@ -83,8 +85,8 @@ public class Normalizer {
                     String trimmedStringValue = stringValue.trim();
 
                     // Check for comma-separated pattern (or other row-splitting patterns)
-                    if (COMMA_SEPARATED_PATTERN.matcher(trimmedStringValue).find()) {
-                        String[] parts = trimmedStringValue.split(COMMA_SEPARATED_PATTERN.pattern());
+                    if (ROW_SPLITTING_DELIMITERS.matcher(trimmedStringValue).find()) {
+                        String[] parts = trimmedStringValue.split(ROW_SPLITTING_DELIMITERS.pattern());
                         List<String> trimmedParts = new ArrayList<>();
                         for (String part : parts) {
                             trimmedParts.add(part.trim());
