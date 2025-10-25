@@ -29,8 +29,8 @@ public class Normalizer {
      */
     private static final List<HeuristicRule> COLUMN_SPLITTING_RULES = List.of(
             new CurrencyHeuristic(),          // Next, specific for currency values
-            new QuantityItemHeuristic(),      // E.g., "2 books" - very specific pattern
             new ValueUnitHeuristic(),         // E.g., "50 kg" - more general number-unit
+            new QuantityItemHeuristic(),      // E.g., "2 books" - very specific pattern
             new ParentheticalAliasHeuristic() // E.g., "Name (Alias)"
             // Add new column-splitting heuristics here,
             //the order of the rules plays a role
