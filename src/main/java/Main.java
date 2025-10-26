@@ -20,13 +20,14 @@ public class Main {
         try (InputStream fileInputStream = new FileInputStream(filePath)) {
             // --- Step 1: Read Excel Data ---
             System.out.println("\n--- Step 1: Reading Excel data ---");
+            // NOTE: Assumes ReadExcelFile class exists with a static readExcelData method
             List<Map<String, Object>> excelData = ReadExcelFile.readExcelData(fileInputStream);
             System.out.println("Excel data read successfully. Number of rows detected: " + excelData.size());
 
 
             // --- Step 2: Normalizing data to First Normal Form (1NF) ---
-            // This is necessary because the CandidateKeyIdentifier/SecondNormalizer relies on 1NF data.
             System.out.println("\n--- Step 2: Normalizing data to First Normal Form (1NF) ---");
+            // NOTE: Assumes Normalizer class exists with a static normalizeTo1NF method
             List<Map<String, Object>> normalized1NFData = Normalizer.normalizeTo1NF(excelData);
             System.out.println("1NF Normalization complete. Number of normalized rows: " + normalized1NFData.size());
 
@@ -34,29 +35,38 @@ public class Main {
             // --- Step 3: Normalizing data to Second Normal Form (2NF) ---
             System.out.println("\n--- Step 3: Decomposing data to Second Normal Form (2NF) ---");
             SecondNormalizer secondNormalizer = new SecondNormalizer();
-            // This map holds the original relation split into potentially multiple 2NF relations
-            Map<String, List<Map<String, Object>>> normalized2NFRelations =
+
+            // *** ADAPTATION 1: Capture the List of DecomposedRelation objects ***
+            List<DecomposedRelation> decomposedRelations =
                     secondNormalizer.normalizeTo2NF(normalized1NFData);
 
-            System.out.println("2NF Decomposition complete. Generated " + normalized2NFRelations.size() + " new relation(s).");
+            System.out.println("2NF Decomposition complete. Generated " + decomposedRelations.size() + " new relation(s).");
 
 
             // --- Step 4: Display Results and Generate SQL script ---
             System.out.println("\n--- Step 4: Displaying 2NF Relations and Generating SQL ---");
 
-            for (Map.Entry<String, List<Map<String, Object>>> entry : normalized2NFRelations.entrySet()) {
-                String relationName = tableNameBase + "_" + entry.getKey();
-                List<Map<String, Object>> relationData = entry.getValue();
+            for (DecomposedRelation relation : decomposedRelations) {
+                // The final SQL table name combines the user base name and the relation's internal name
+                String relationName = tableNameBase + "_" + relation.name();
 
                 System.out.println("\n== Relation Name: " + relationName + " ==");
+                System.out.println("   Primary Keys: " + relation.primaryKeys());
+                System.out.println("   Foreign Keys: " + relation.foreignKeys());
 
                 // Display the data preview for the new relation
-                for (Map<String, Object> row : relationData) {
+                // NOTE: Using relation.data() and relation.primaryKeys()/foreignKeys() from the record
+                for (Map<String, Object> row : relation.data()) {
                     System.out.println(row);
                 }
 
-                // Generate SQL for the new relation
-                String sqlScript = SqlGenerator.generateSqlScript(relationData, relationName);
+                // *** ADAPTATION 2: Pass key metadata to the SqlGenerator's updated method ***
+                String sqlScript = SqlGenerator.generateSqlScript(
+                        relation.data(),
+                        relationName,
+                        relation.primaryKeys(),
+                        relation.foreignKeys()
+                );
 
                 System.out.println("\n--- START SQL SCRIPT for " + relationName + " ---\n");
                 System.out.println(sqlScript);

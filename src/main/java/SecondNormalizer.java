@@ -14,21 +14,29 @@ public class SecondNormalizer {
     private static final String MAIN_RELATION_NAME = "MainRelation";
 
     /**
+     * Helper to sanitize column names using the logic from SqlGenerator,
+     * ensuring keys are stored in the correct format (UPPERCASE).
+     */
+    private String toSqlIdentifier(String name) {
+        // Since SqlGenerator is in the same package, we can call its static method directly.
+        return SqlGenerator.toSqlIdentifier(name);
+    }
+
+    /**
      * Public interface to begin the 2NF normalization process.
      *
      * @param input1NFData The list of maps representing the data that is already in 1NF.
-     * Each Map is a tuple, and keys are column names.
-     * @return A map where keys are relation names (e.g., "MainRelation", "ProductDetails")
-     * and values are the new decomposed list of tuples (tables).
+     * @return A list of DecomposedRelation objects, each containing the data and key metadata (PK/FK).
      */
-    public Map<String, List<Map<String, Object>>> normalizeTo2NF(
+    public List<DecomposedRelation> normalizeTo2NF(
             List<Map<String, Object>> input1NFData) {
 
         if (input1NFData == null || input1NFData.isEmpty()) {
-            return Collections.emptyMap();
+            return Collections.emptyList();
         }
 
         // Step 1: Synthesize the Primary/Candidate Key using the dedicated external analyzer.
+        // NOTE: CandidateKeyIdentifier must be implemented elsewhere.
         CandidateKeyIdentifier identifier = new CandidateKeyIdentifier();
         Set<Set<String>> allCandidateKeys = identifier.identifyAllCandidateKeys(input1NFData);
 
@@ -36,25 +44,24 @@ public class SecondNormalizer {
         Set<String> candidateKey = selectKeyFor2NFDecomposition(allCandidateKeys);
 
         if (candidateKey.isEmpty()) {
-            System.err.println("Error: No Candidate Key could be identified for the relation.");
-            Map<String, List<Map<String, Object>>> result = new HashMap<>();
-            result.put(MAIN_RELATION_NAME, input1NFData);
-            return result;
+            System.err.println("Error: No Candidate Key could be identified for the relation. Returning original data as MainRelation.");
+
+            // If no key found, return the original data wrapped in a DecomposedRelation with no keys.
+            List<String> emptyKeys = Collections.emptyList();
+            Map<String, String> emptyFks = Collections.emptyMap();
+
+            return List.of(new DecomposedRelation(MAIN_RELATION_NAME, input1NFData, emptyKeys, emptyFks));
         }
 
         System.out.println("Selected Candidate Key for 2NF: " + candidateKey);
 
         // Step 2: Identify and Decompose Partial Dependencies.
-        // This is the core 2NF logic.
         return decomposeForPartialDependencies(input1NFData, candidateKey);
     }
 
     /**
      * Selects the most appropriate Candidate Key for 2NF decomposition demonstration.
      * We prefer a composite key (size > 1) if available, as 2NF is only relevant for composite keys.
-     *
-     * @param allCandidateKeys All identified minimal candidate keys.
-     * @return The selected key (composite key if available, otherwise the smallest key).
      */
     private Set<String> selectKeyFor2NFDecomposition(Set<Set<String>> allCandidateKeys) {
         if (allCandidateKeys.isEmpty()) {
@@ -78,35 +85,34 @@ public class SecondNormalizer {
     }
 
     /**
-     * Performs the relational decomposition to eliminate partial dependencies.
+     * Performs the relational decomposition to eliminate partial dependencies,
+     * and correctly identifies the Primary Key (PK) and Foreign Key (FK) for each new relation.
      *
      * @param input1NFData The input relation (List of Maps).
-     * @param candidateKey The identified composite primary key.
-     * @return A map of new, decomposed relations.
+     * @param candidateKey The identified composite primary key (e.g., [MiNr, ProNr]).
+     * @return A list of new, decomposed relations with metadata.
      */
-    private Map<String, List<Map<String, Object>>> decomposeForPartialDependencies(
+    private List<DecomposedRelation> decomposeForPartialDependencies(
             List<Map<String, Object>> input1NFData,
             Set<String> candidateKey) {
 
-        Map<String, List<Map<String, Object>>> normalizedRelations = new HashMap<>();
+        List<DecomposedRelation> normalizedRelations = new ArrayList<>();
 
         // If the key is not composite (single column), the relation is automatically in 2NF.
         if (candidateKey.size() <= 1) {
-            normalizedRelations.put(MAIN_RELATION_NAME, input1NFData);
+            // Relation is already in 2NF. Return it with its PK.
+            List<String> pk = candidateKey.stream().map(this::toSqlIdentifier).collect(Collectors.toList());
+            normalizedRelations.add(new DecomposedRelation(MAIN_RELATION_NAME, input1NFData, pk, Collections.emptyMap()));
             return normalizedRelations;
         }
 
-        // The determinant (a subset of the composite key)
+        // --- SIMPLIFIED 2NF HEURISTIC ---
+        // We select the first column of the composite key as the determinant.
         final String partialDeterminant = new ArrayList<>(candidateKey).get(0);
 
-        // Temporary variable to find the partially dependent attribute
         String dependentAttrTemp = null;
-
-        // Simplified Heuristic: Find an attribute that is non-key but is identical
-        // for every unique value of the partial determinant.
         for (String column : input1NFData.get(0).keySet()) {
             if (!candidateKey.contains(column)) {
-                // Check if it's determined only by the first part of the key
                 if (isPartiallyDependent(input1NFData, partialDeterminant, column)) {
                     dependentAttrTemp = column;
                     break;
@@ -114,57 +120,64 @@ public class SecondNormalizer {
             }
         }
 
-        // --- FIX: Assign to a final variable for use in the Stream lambdas ---
         final String partiallyDependentAttribute = dependentAttrTemp;
 
         if (partiallyDependentAttribute == null) {
             // No partial dependencies found/simulated, relation is 2NF.
-            normalizedRelations.put(MAIN_RELATION_NAME, input1NFData);
+            List<String> pk = candidateKey.stream().map(this::toSqlIdentifier).collect(Collectors.toList());
+            normalizedRelations.add(new DecomposedRelation(MAIN_RELATION_NAME, input1NFData, pk, Collections.emptyMap()));
             return normalizedRelations;
         }
 
-        // --- DECOMPOSITION EXECUTION ---
+        // --- DECOMPOSITION EXECUTION & KEY ASSIGNMENT ---
 
-        // Relation 1: The partially dependent relation (e.g., OrderDetails)
-        // Key: {partialDeterminant} -> Non-Key: {partiallyDependentAttribute}
-        Set<String> r1Columns = new LinkedHashSet<>();
-        r1Columns.add(partialDeterminant);
-        r1Columns.add(partiallyDependentAttribute);
+        // Relation 1: The partially dependent relation (e.g., ProNr_Details or Worker_Details)
+        final String detailsRelationName = partialDeterminant + "_Details";
 
         List<Map<String, Object>> r1Data = input1NFData.stream()
                 .map(row -> {
                     Map<String, Object> newRow = new LinkedHashMap<>();
                     newRow.put(partialDeterminant, row.get(partialDeterminant));
-                    // Now safe to use 'partiallyDependentAttribute' in the lambda
                     newRow.put(partiallyDependentAttribute, row.get(partiallyDependentAttribute));
                     return newRow;
                 })
                 .distinct() // Remove redundant rows
                 .collect(Collectors.toList());
 
-        normalizedRelations.put(partialDeterminant + "_Details", r1Data);
-        System.out.println("Decomposed Relation: " + partialDeterminant + "_Details created.");
+        // R1 KEYS: PK is the determinant.
+        List<String> r1PK = List.of(toSqlIdentifier(partialDeterminant));
+        Map<String, String> r1FKs = Collections.emptyMap(); // New table has no FKs pointing out
+
+        normalizedRelations.add(new DecomposedRelation(detailsRelationName, r1Data, r1PK, r1FKs));
+        System.out.println("Decomposed Relation: " + detailsRelationName + " created.");
+
 
         // Relation 2: The residual relation (Main Relation)
-        // Remove the partially dependent attribute from the main table, keeping the key and other attributes.
         List<Map<String, Object>> residualData = input1NFData.stream()
                 .map(row -> {
                     Map<String, Object> newRow = new LinkedHashMap<>(row);
-                    // Now safe to use 'partiallyDependentAttribute' in the lambda
                     newRow.remove(partiallyDependentAttribute); // Eliminate redundancy
                     return newRow;
                 })
                 .collect(Collectors.toList());
 
-        normalizedRelations.put(MAIN_RELATION_NAME, residualData);
+        // R2 KEYS: PK is the original composite key.
+        List<String> r2PK = candidateKey.stream().map(this::toSqlIdentifier).collect(Collectors.toList());
+
+        // The determinant column of the partial dependency becomes a Foreign Key in the Main Relation,
+        // referencing the new Details relation.
+        Map<String, String> r2FKs = Map.of(
+                toSqlIdentifier(partialDeterminant),
+                toSqlIdentifier(detailsRelationName) + "(" + toSqlIdentifier(partialDeterminant) + ")"
+        );
+
+        normalizedRelations.add(new DecomposedRelation(MAIN_RELATION_NAME, residualData, r2PK, r2FKs));
 
         return normalizedRelations;
     }
 
     /**
      * Simplified heuristic to detect partial dependency for the purpose of demonstrating decomposition.
-     * Checks if attribute 'dependentAttr' is functionally dependent on 'determinant' (i.e., every
-     * unique value of determinant maps to only one unique value of dependentAttr).
      */
     private boolean isPartiallyDependent(List<Map<String, Object>> data, String determinant, String dependentAttr) {
         Map<Object, Object> checkMap = new HashMap<>();
@@ -183,8 +196,6 @@ public class SecondNormalizer {
                 checkMap.put(determinantValue, dependentValue);
             }
         }
-        // If the loop completes, it's a functional dependency on the determinant.
-        // We assume here this is a partial dependency because we only checked the first key part.
         return true;
     }
 }

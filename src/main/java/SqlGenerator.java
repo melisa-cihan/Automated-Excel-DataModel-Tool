@@ -3,6 +3,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 public class SqlGenerator {
 
@@ -17,7 +18,7 @@ public class SqlGenerator {
      * @param name The original column name.
      * @return A sanitized SQL identifier.
      */
-    private static String toSqlIdentifier(String name) {
+    public static String toSqlIdentifier(String name) {
         if (name == null || name.trim().isEmpty()) {
             return "UNKNOWN_COLUMN"; // Fallback for empty names, though getColumnNames should handle this
         }
@@ -38,7 +39,6 @@ public class SqlGenerator {
 
     /**
      * Determines the most appropriate SQL data type for a given Java object value.
-     * Uses a switch expression for cleaner type checking.
      * @param value The Java object value.
      * @return A string representing the SQL data type (e.g., "INT", "VARCHAR(255)").
      */
@@ -69,8 +69,6 @@ public class SqlGenerator {
 
     /**
      * Promotes a SQL data type to a more general one if a conflicting type is found.
-     * E.g., INT -> DOUBLE, DATE -> DATETIME, VARCHAR(X) -> VARCHAR(Y)
-     * This is a simplified promotion logic.
      *
      * @param existingType The currently inferred SQL type for a column.
      * @param newType      The new type encountered for the same column.
@@ -91,22 +89,28 @@ public class SqlGenerator {
         if ((existingType.equals("DATE") && newType.equals("DATETIME")) || (existingType.equals("DATETIME") && newType.equals("DATE"))) {
             return "DATETIME"; // DATETIME is more general than DATE
         }
-        // Add more complex promotion rules if necessary (e.g., for DECIMAL precision)
 
-        // If no specific promotion rule, default to the more general type (VARCHAR as a safe bet)
         return "VARCHAR(255)";
     }
 
 
     /**
      * Generates a SQL script containing CREATE TABLE and INSERT statements
-     * based on the normalized data.
+     * based on the normalized data and including key constraints.
      *
      * @param normalizedData The data in 1NF (List of Maps).
      * @param tableName The desired name for the SQL table.
+     * @param primaryKeys A list of SQL-sanitized column names forming the primary key.
+     * @param foreignKeys A map where key is the FK column name (SQL-sanitized) and value is the
+     * reference string (e.g., "REFERENCE_TABLE(COLUMN_NAME)").
      * @return A String containing the SQL script.
      */
-    public static String generateSqlScript(List<Map<String, Object>> normalizedData, String tableName) {
+    public static String generateSqlScript(
+            List<Map<String, Object>> normalizedData,
+            String tableName,
+            List<String> primaryKeys,
+            Map<String, String> foreignKeys) {
+
         StringBuilder sqlBuilder = new StringBuilder();
 
         if (normalizedData == null || normalizedData.isEmpty()) {
@@ -117,7 +121,6 @@ public class SqlGenerator {
         String sqlTableName = toSqlIdentifier(tableName);
 
         // --- Step 1: Determine Comprehensive Schema (All Columns and Most General Types) ---
-        // Use LinkedHashMap to preserve the order of columns as they are first encountered
         Map<String, String> columnSchema = new LinkedHashMap<>();
 
         // Iterate through ALL normalized rows to discover all columns and infer their most general type
@@ -142,13 +145,33 @@ public class SqlGenerator {
         // --- Step 2: Generate CREATE TABLE Statement ---
         sqlBuilder.append("CREATE TABLE ").append(sqlTableName).append(" (\n");
         boolean firstColumn = true;
+
+        // Add all column definitions (Name and Type)
         for (Map.Entry<String, String> entry : columnSchema.entrySet()) {
             if (!firstColumn) {
-                sqlBuilder.append(",\n"); // Add comma before subsequent columns
+                sqlBuilder.append(",\n");
             }
             sqlBuilder.append("    ").append(entry.getKey()).append(" ").append(entry.getValue());
             firstColumn = false;
         }
+
+        // Add PRIMARY KEY constraint
+        if (primaryKeys != null && !primaryKeys.isEmpty()) {
+            String pkList = primaryKeys.stream().collect(Collectors.joining(", "));
+            sqlBuilder.append(",\n    PRIMARY KEY (").append(pkList).append(")");
+        }
+
+        // Add FOREIGN KEY constraints
+        if (foreignKeys != null && !foreignKeys.isEmpty()) {
+            for (Map.Entry<String, String> fkEntry : foreignKeys.entrySet()) {
+                String fkColumn = fkEntry.getKey(); // The local column (e.g., 'MITARBEITER_ID')
+                String fkReference = fkEntry.getValue(); // The reference string (e.g., 'MITARBEITER(ID)')
+
+                sqlBuilder.append(",\n    FOREIGN KEY (").append(fkColumn).append(")");
+                sqlBuilder.append(" REFERENCES ").append(fkReference);
+            }
+        }
+
         sqlBuilder.append("\n);\n\n");
 
         // --- Step 3: Generate INSERT Statements ---
@@ -159,14 +182,10 @@ public class SqlGenerator {
             StringBuilder values = new StringBuilder();
             boolean firstValue = true;
 
-            // Iterate through the *determined schema* to ensure all columns are included
-            // and in the correct order for the INSERT statement
             for (Map.Entry<String, String> schemaEntry : columnSchema.entrySet()) {
                 String sqlColumnName = schemaEntry.getKey();
-                String originalColumnName = null; // We need to find the original key from the row map
+                String originalColumnName = null;
 
-                // Find the original column name that maps to this sanitized SQL column name
-                // This is needed because `row` map keys are original names
                 for (String keyInRow : row.keySet()) {
                     if (toSqlIdentifier(keyInRow).equals(sqlColumnName)) {
                         originalColumnName = keyInRow;
@@ -174,8 +193,6 @@ public class SqlGenerator {
                     }
                 }
 
-                // Get the value from the current row. If the row doesn't have this specific column
-                // (which can happen if a column was created by normalization in another row), it will be null.
                 Object value = (originalColumnName != null && row.containsKey(originalColumnName)) ? row.get(originalColumnName) : null;
 
                 if (!firstValue) {
@@ -194,10 +211,6 @@ public class SqlGenerator {
 
     /**
      * Formats a Java object value into a SQL literal string for INSERT statements.
-     * Handles nulls, strings (with quoting and escaping), booleans, and numbers.
-     *
-     * @param value The Java object value.
-     * @return A SQL-formatted string representation of the value.
      */
     private static String formatSqlValue(Object value) {
         if (value == null) {
@@ -209,7 +222,6 @@ public class SqlGenerator {
             case Boolean boolValue -> boolValue ? "TRUE" : "FALSE";
             case Number numValue -> numValue.toString(); // Integer, Double, etc. are all Numbers
             // Fallback for any other types, convert to string and quote.
-            // This catches types like LocalDateTime if they aren't handled by specific cases.
             default -> "'" + value.toString().replace("'", "''") + "'";
         };
     }
