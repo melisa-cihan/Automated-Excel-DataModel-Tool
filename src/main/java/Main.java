@@ -9,14 +9,13 @@ public class Main {
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
 
-
         System.out.println("Please enter the full path to your Excel file (e.g., C:\\data\\mydata.xlsx or /home/user/data.xls):");
         String filePath = scanner.nextLine();
 
-        System.out.println("Please enter the desired SQL table name (e.g., 'MyNormalizedData').");
+        System.out.println("Please enter the desired SQL table name base (e.g., 'Order').");
         System.out.println("If left blank, a default name like 'EXCEL_DATA' will be used:");
         String tableNameInput = scanner.nextLine();
-        String tableName = tableNameInput.trim().isEmpty() ? "EXCEL_DATA" : tableNameInput.trim();
+        String tableNameBase = tableNameInput.trim().isEmpty() ? "EXCEL_DATA" : tableNameInput.trim();
 
         try (InputStream fileInputStream = new FileInputStream(filePath)) {
             // --- Step 1: Read Excel Data ---
@@ -26,25 +25,44 @@ public class Main {
 
 
             // --- Step 2: Normalizing data to First Normal Form (1NF) ---
+            // This is necessary because the CandidateKeyIdentifier/SecondNormalizer relies on 1NF data.
             System.out.println("\n--- Step 2: Normalizing data to First Normal Form (1NF) ---");
-            List<Map<String, Object>> normalizedData = Normalizer.normalizeTo1NF(excelData);
-            System.out.println("Normalization complete. Number of normalized rows: " + normalizedData.size());
+            List<Map<String, Object>> normalized1NFData = Normalizer.normalizeTo1NF(excelData);
+            System.out.println("1NF Normalization complete. Number of normalized rows: " + normalized1NFData.size());
 
-            // Display the entire normalized data preview
-            System.out.println("\nFull Preview of Normalized Data:");
-            for (Map<String, Object> row : normalizedData) {
-                System.out.println(row);
+
+            // --- Step 3: Normalizing data to Second Normal Form (2NF) ---
+            System.out.println("\n--- Step 3: Decomposing data to Second Normal Form (2NF) ---");
+            SecondNormalizer secondNormalizer = new SecondNormalizer();
+            // This map holds the original relation split into potentially multiple 2NF relations
+            Map<String, List<Map<String, Object>>> normalized2NFRelations =
+                    secondNormalizer.normalizeTo2NF(normalized1NFData);
+
+            System.out.println("2NF Decomposition complete. Generated " + normalized2NFRelations.size() + " new relation(s).");
+
+
+            // --- Step 4: Display Results and Generate SQL script ---
+            System.out.println("\n--- Step 4: Displaying 2NF Relations and Generating SQL ---");
+
+            for (Map.Entry<String, List<Map<String, Object>>> entry : normalized2NFRelations.entrySet()) {
+                String relationName = tableNameBase + "_" + entry.getKey();
+                List<Map<String, Object>> relationData = entry.getValue();
+
+                System.out.println("\n== Relation Name: " + relationName + " ==");
+
+                // Display the data preview for the new relation
+                for (Map<String, Object> row : relationData) {
+                    System.out.println(row);
+                }
+
+                // Generate SQL for the new relation
+                String sqlScript = SqlGenerator.generateSqlScript(relationData, relationName);
+
+                System.out.println("\n--- START SQL SCRIPT for " + relationName + " ---\n");
+                System.out.println(sqlScript);
+                System.out.println("\n--- END SQL SCRIPT for " + relationName + " ---\n");
             }
 
-
-            // --- Step 3: Generate SQL script ---
-            System.out.println("\n--- Step 3: Generating SQL script ---");
-            String sqlScript = SqlGenerator.generateSqlScript(normalizedData, tableName);
-            System.out.println("\nSQL script generated successfully:\n");
-
-            System.out.println("\n--- START SQL SCRIPT ---\n");
-            System.out.println(sqlScript);
-            System.out.println("\n--- END SQL SCRIPT ---\n");
 
         } catch (IOException e) {
             System.err.println("Error reading the Excel file. Please check the path and file permissions: " + e.getMessage());
