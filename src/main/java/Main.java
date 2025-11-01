@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
 
+
 public class Main {
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
@@ -36,9 +37,9 @@ public class Main {
             System.out.println("\n--- Step 3: Decomposing data to Second Normal Form (2NF) ---");
             SecondNormalizer secondNormalizer = new SecondNormalizer();
 
-            // *** ADAPTATION 1: Capture the List of DecomposedRelation objects ***
+            // *** ADAPTATION 1: Pass tableNameBase IN, and capture the List of DecomposedRelation objects ***
             List<DecomposedRelation> decomposedRelations =
-                    secondNormalizer.normalizeTo2NF(normalized1NFData);
+                    secondNormalizer.normalizeTo2NF(normalized1NFData, tableNameBase);
 
             System.out.println("2NF Decomposition complete. Generated " + decomposedRelations.size() + " new relation(s).");
 
@@ -46,23 +47,25 @@ public class Main {
             // --- Step 4: Display Results and Generate SQL script ---
             System.out.println("\n--- Step 4: Displaying 2NF Relations and Generating SQL ---");
 
+            // *** ADAPTATION 2: Loop over the List<DecomposedRelation> ***
             for (DecomposedRelation relation : decomposedRelations) {
-                // The final SQL table name combines the user base name and the relation's internal name
-                String relationName = tableNameBase + "_" + relation.name();
+                // The relation name is now pre-built and SQL-sanitized by the SecondNormalizer
+                String relationName = relation.name(); // Get the full name (e.g., "SHOP_SIZE_DETAILS")
+                List<Map<String, Object>> relationData = relation.data();
 
                 System.out.println("\n== Relation Name: " + relationName + " ==");
+                // Print the key metadata from the relation object
                 System.out.println("   Primary Keys: " + relation.primaryKeys());
                 System.out.println("   Foreign Keys: " + relation.foreignKeys());
 
                 // Display the data preview for the new relation
-                // NOTE: Using relation.data() and relation.primaryKeys()/foreignKeys() from the record
-                for (Map<String, Object> row : relation.data()) {
+                for (Map<String, Object> row : relationData) {
                     System.out.println(row);
                 }
 
-                // *** ADAPTATION 2: Pass key metadata to the SqlGenerator's updated method ***
+                // *** ADAPTATION 3: Pass key metadata to the SqlGenerator's updated method ***
                 String sqlScript = SqlGenerator.generateSqlScript(
-                        relation.data(),
+                        relationData,
                         relationName,
                         relation.primaryKeys(),
                         relation.foreignKeys()
@@ -86,3 +89,4 @@ public class Main {
         }
     }
 }
+
