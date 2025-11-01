@@ -12,7 +12,7 @@ import java.util.stream.Collectors;
  * from String values that represent other types (e.g., "123", "true").
  *
  * This version uses standard, portable SQL types (INTEGER, DECIMAL, SMALLINT)
- * instead of dialect-specific types for maximum database compatibility.
+ * instead of dialect-specific types for maximum database compatibility
  */
 public class SqlGenerator {
 
