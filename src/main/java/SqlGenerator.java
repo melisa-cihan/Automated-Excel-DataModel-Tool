@@ -1,74 +1,130 @@
 import java.time.LocalDateTime;
+import java.util.ArrayList; // Import ArrayList
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+/**
+ * Generates SQL CREATE TABLE and INSERT statements from normalized data.
+ * This class infers SQL data types from Java objects and, crucially,
+ * from String values that represent other types (e.g., "123", "true").
+ *
+ * This version uses standard, portable SQL types (INTEGER, DECIMAL, SMALLINT)
+ * instead of dialect-specific types for maximum database compatibility.
+ */
 public class SqlGenerator {
 
-    // Regex for common date string formats for SQL type inference
+    // Regex for common ISO date/datetime string formats
     private static final Pattern SQL_DATE_PATTERN = Pattern.compile("^\\d{4}-\\d{2}-\\d{2}(T\\d{2}:\\d{2}(:\\d{2}(\\.\\d+)?)?)?$");
+    private static final String DEFAULT_STRING_TYPE = "VARCHAR(255)";
+    private static final String TYPE_INTEGER = "INTEGER";
+    private static final String TYPE_DECIMAL = "DECIMAL(18, 4)";
+    private static final String TYPE_BOOLEAN = "SMALLINT";
+    private static final String TYPE_DATE = "DATE";
+    private static final String TYPE_TIMESTAMP = "TIMESTAMP";
 
     /**
-     * Converts a string name to a SQL-friendly identifier.
-     * Replaces non-alphanumeric characters (except underscore) with underscores,
-     * ensures it doesn't start with a digit, and converts to uppercase.
+     * Converts a string name to a SQL-friendly identifier (e.g., UPPERCASE_WITH_UNDERSCORES).
      *
      * @param name The original column name.
-     * @return A sanitized SQL identifier.
+     * @return A sanitized, SQL-safe identifier.
      */
     public static String toSqlIdentifier(String name) {
         if (name == null || name.trim().isEmpty()) {
-            return "UNKNOWN_COLUMN"; // Fallback for empty names, though getColumnNames should handle this
+            return "UNKNOWN_COLUMN";
         }
-        // Replace any characters not a letter, number, or underscore with an underscore
         String sanitized = name.trim().replaceAll("[^a-zA-Z0-9_]", "_");
-        // Ensure it doesn't start with a digit (SQL identifiers generally cannot)
         if (sanitized.matches("^\\d.*")) {
             sanitized = "_" + sanitized;
         }
-        // Remove leading/trailing underscores that might result from sanitization
         sanitized = sanitized.replaceAll("^_|_$", "");
-        // If it becomes empty after sanitization (e.g., original was just " "), assign a default
         if (sanitized.isEmpty()) {
             return "DEFAULT_COLUMN";
         }
-        return sanitized.toUpperCase(); // Common SQL convention for identifiers
+        return sanitized.toUpperCase();
     }
 
     /**
      * Determines the most appropriate SQL data type for a given Java object value.
-     * @param value The Java object value.
-     * @return A string representing the SQL data type (e.g., "INT", "VARCHAR(255)").
+     * This method handles both pre-typed objects (Integer, Double) and
+     * infers types from String objects, mapping them to standard SQL types.
+     *
+     * @param value The Java object value from the data map.
+     * @return A string representing the SQL data type (e.g., "INTEGER", "DECIMAL(18, 4)").
      */
     private static String getSqlType(Object value) {
         if (value == null) {
-            return "VARCHAR(255)"; // Default for null, will be promoted if other non-null values appear
+            return DEFAULT_STRING_TYPE; // Default for nulls
         }
 
+        // Use modern switch expression for clean type matching
         return switch (value) {
-            case Integer ignored -> "INT";
-            case Double ignored -> "DOUBLE";
-            case Boolean ignored -> "BOOLEAN";
-            case String strValue -> { // Pattern variable 'strValue' automatically casts 'value' to String
-                // Check for date/datetime patterns within the string
-                if (SQL_DATE_PATTERN.matcher(strValue).matches()) {
-                    if (strValue.contains("T")) {
-                        yield "DATETIME"; // 'yield' is used in switch expressions to return a value
-                    }
-                    yield "DATE";
-                }
-                yield "VARCHAR(255)"; // Default for other strings
-            }
-            case LocalDateTime ignored -> "DATETIME"; // Handle LocalDateTime objects directly if they somehow appear
-            default -> "VARCHAR(255)"; // Fallback for any other unexpected Java types
+            // Case 1: The Normalizer's heuristics already typed the object correctly.
+            // FIX: Use unique, named variables (i, l, d, f, b, ldt)
+            // as unnamed patterns (_) are not standard in Java 21.
+            case Integer i -> TYPE_INTEGER;
+            case Long l -> TYPE_INTEGER;
+            case Double d -> TYPE_DECIMAL;
+            case Float f -> TYPE_DECIMAL;
+            case Boolean b -> TYPE_BOOLEAN;
+            case LocalDateTime ldt -> TYPE_TIMESTAMP;
+
+            // Case 2: The object is a String that needs type inference.
+            case String strValue -> inferSqlTypeFromString(strValue);
+
+            // Fallback for any other unexpected Java types
+            default -> DEFAULT_STRING_TYPE;
         };
+    }
+
+    /**
+     * Helper method to infer the SQL type from a String value.
+     * Checks for Boolean, Date, Integer, and Double before defaulting to VARCHAR.
+     *
+     * @param value The String value to analyze.
+     * @return The inferred SQL data type as a String.
+     */
+    private static String inferSqlTypeFromString(String value) {
+        String trimmed = value.trim();
+        if (trimmed.isEmpty()) {
+            return DEFAULT_STRING_TYPE;
+        }
+
+        // Check 1: Boolean
+        if (trimmed.equalsIgnoreCase("true") || trimmed.equalsIgnoreCase("false")) {
+            return TYPE_BOOLEAN;
+        }
+
+        // Check 2: Date/Datetime
+        if (SQL_DATE_PATTERN.matcher(trimmed).matches()) {
+            return trimmed.contains("T") ? TYPE_TIMESTAMP : TYPE_DATE;
+        }
+
+        // Check 3: Numeric (Integer or Double)
+        try {
+            // Try parsing as a whole number
+            Long.parseLong(trimmed);
+            return TYPE_INTEGER; // Use Long to handle large numbers, but map to SQL INTEGER
+        } catch (NumberFormatException e1) {
+            // Not an integer, try parsing as a floating-point number
+            try {
+                Double.parseDouble(trimmed);
+                return TYPE_DECIMAL; // Use DECIMAL for floating-point precision
+            } catch (NumberFormatException e2) {
+                // Not a number, fall through to default
+            }
+        }
+
+        // Default: Treat as a standard text string
+        return DEFAULT_STRING_TYPE;
     }
 
 
     /**
      * Promotes a SQL data type to a more general one if a conflicting type is found.
+     * This is crucial for columns with mixed data (e.g., "10" and "10.5").
      *
      * @param existingType The currently inferred SQL type for a column.
      * @param newType      The new type encountered for the same column.
@@ -79,18 +135,36 @@ public class SqlGenerator {
             return existingType;
         }
 
-        // Simple type promotion rules
-        if (existingType.equals("VARCHAR(255)") || newType.equals("VARCHAR(255)")) {
-            return "VARCHAR(255)"; // String is the most general for mixed types
+        // Promotion priority: VARCHAR > DECIMAL > INTEGER > SMALLINT
+        // (Date types are handled separately)
+
+        if (existingType.equals(DEFAULT_STRING_TYPE) || newType.equals(DEFAULT_STRING_TYPE)) {
+            return DEFAULT_STRING_TYPE;
         }
-        if ((existingType.equals("INT") && newType.equals("DOUBLE")) || (existingType.equals("DOUBLE") && newType.equals("INT"))) {
-            return "DOUBLE"; // Double is more general than Int
+        if (existingType.equals(TYPE_DECIMAL) || newType.equals(TYPE_DECIMAL)) {
+            // Promote INTEGER/SMALLINT to DECIMAL if mixed
+            if (newType.equals(TYPE_INTEGER) || existingType.equals(TYPE_INTEGER) || newType.equals(TYPE_BOOLEAN) || existingType.equals(TYPE_BOOLEAN)) {
+                return TYPE_DECIMAL;
+            }
         }
-        if ((existingType.equals("DATE") && newType.equals("DATETIME")) || (existingType.equals("DATETIME") && newType.equals("DATE"))) {
-            return "DATETIME"; // DATETIME is more general than DATE
+        if (existingType.equals(TYPE_INTEGER) || newType.equals(TYPE_INTEGER)) {
+            // Promote SMALLINT to INTEGER if mixed
+            if (newType.equals(TYPE_BOOLEAN) || existingType.equals(TYPE_BOOLEAN)) {
+                return TYPE_INTEGER;
+            }
+        }
+        if (existingType.equals(TYPE_TIMESTAMP) || newType.equals(TYPE_TIMESTAMP)) {
+            // Promote DATE to TIMESTAMP if mixed
+            if (newType.equals(TYPE_DATE) || existingType.equals(TYPE_DATE)) {
+                return TYPE_TIMESTAMP;
+            }
+        }
+        // If types are different but not promotable (e.g., INTEGER and DATE), default to VARCHAR
+        if (!existingType.equals(newType)) {
+            return DEFAULT_STRING_TYPE;
         }
 
-        return "VARCHAR(255)";
+        return existingType; // Should be covered by the first check
     }
 
 
@@ -98,12 +172,12 @@ public class SqlGenerator {
      * Generates a SQL script containing CREATE TABLE and INSERT statements
      * based on the normalized data and including key constraints.
      *
-     * @param normalizedData The data in 1NF (List of Maps).
-     * @param tableName The desired name for the SQL table.
-     * @param primaryKeys A list of SQL-sanitized column names forming the primary key.
-     * @param foreignKeys A map where key is the FK column name (SQL-sanitized) and value is the
-     * reference string (e.g., "REFERENCE_TABLE(COLUMN_NAME)").
-     * @return A String containing the SQL script.
+     * @param normalizedData The List of data rows (maps).
+     * @param tableName      The desired name for the SQL table.
+     * @param primaryKeys    A List of SQL-sanitized column names forming the primary key.
+     * @param foreignKeys    A Map where the key is the FK column name (SQL-sanitized) and
+     * the value is the reference string (e.g., "REFERENCE_TABLE(COLUMN)").
+     * @return A String containing the full SQL script.
      */
     public static String generateSqlScript(
             List<Map<String, Object>> normalizedData,
@@ -117,13 +191,11 @@ public class SqlGenerator {
             return "-- No data to generate SQL for.\n";
         }
 
-        // Sanitize table name (similar to column names)
         String sqlTableName = toSqlIdentifier(tableName);
 
         // --- Step 1: Determine Comprehensive Schema (All Columns and Most General Types) ---
         Map<String, String> columnSchema = new LinkedHashMap<>();
 
-        // Iterate through ALL normalized rows to discover all columns and infer their most general type
         for (Map<String, Object> row : normalizedData) {
             for (Map.Entry<String, Object> entry : row.entrySet()) {
                 String originalColumnName = entry.getKey();
@@ -131,10 +203,8 @@ public class SqlGenerator {
                 String inferredType = getSqlType(entry.getValue());
 
                 if (!columnSchema.containsKey(sqlColumnName)) {
-                    // If column is new, add it with its inferred type
                     columnSchema.put(sqlColumnName, inferredType);
                 } else {
-                    // If column already exists, promote its type if the new type is more general
                     String existingType = columnSchema.get(sqlColumnName);
                     String promotedType = promoteSqlType(existingType, inferredType);
                     columnSchema.put(sqlColumnName, promotedType);
@@ -142,37 +212,48 @@ public class SqlGenerator {
             }
         }
 
-        // --- Step 2: Generate CREATE TABLE Statement ---
+        // --- Step 2: Generate CREATE TABLE Statement (Refactored for Cleanliness) ---
         sqlBuilder.append("CREATE TABLE ").append(sqlTableName).append(" (\n");
-        boolean firstColumn = true;
+
+        // Use a List to manage definitions, avoiding trailing comma bugs.
+        List<String> createDefinitions = new ArrayList<>();
 
         // Add all column definitions (Name and Type)
         for (Map.Entry<String, String> entry : columnSchema.entrySet()) {
-            if (!firstColumn) {
-                sqlBuilder.append(",\n");
+            StringBuilder columnDef = new StringBuilder();
+            columnDef.append("    ").append(entry.getKey()).append(" ").append(entry.getValue());
+            // Add NOT NULL constraint if column is part of the primary key
+            if (primaryKeys != null && primaryKeys.contains(entry.getKey())) {
+                columnDef.append(" NOT NULL");
             }
-            sqlBuilder.append("    ").append(entry.getKey()).append(" ").append(entry.getValue());
-            firstColumn = false;
+            createDefinitions.add(columnDef.toString());
         }
 
         // Add PRIMARY KEY constraint
         if (primaryKeys != null && !primaryKeys.isEmpty()) {
-            String pkList = primaryKeys.stream().collect(Collectors.joining(", "));
-            sqlBuilder.append(",\n    PRIMARY KEY (").append(pkList).append(")");
+            String pkList = String.join(", ", primaryKeys);
+            createDefinitions.add("    CONSTRAINT PK_" + sqlTableName + " PRIMARY KEY (" + pkList + ")");
         }
 
         // Add FOREIGN KEY constraints
         if (foreignKeys != null && !foreignKeys.isEmpty()) {
             for (Map.Entry<String, String> fkEntry : foreignKeys.entrySet()) {
-                String fkColumn = fkEntry.getKey(); // The local column (e.g., 'MITARBEITER_ID')
-                String fkReference = fkEntry.getValue(); // The reference string (e.g., 'MITARBEITER(ID)')
+                String fkColumn = fkEntry.getKey();
+                String fkReference = fkEntry.getValue();
+                String fkName = "FK_" + sqlTableName + "_" + fkColumn;
 
-                sqlBuilder.append(",\n    FOREIGN KEY (").append(fkColumn).append(")");
-                sqlBuilder.append(" REFERENCES ").append(fkReference);
+                StringBuilder fkDef = new StringBuilder();
+                fkDef.append("    CONSTRAINT ").append(fkName);
+                fkDef.append(" FOREIGN KEY (").append(fkColumn).append(")");
+                fkDef.append(" REFERENCES ").append(fkReference);
+                createDefinitions.add(fkDef.toString());
             }
         }
 
+        // Join all definitions with a comma and newline
+        sqlBuilder.append(String.join(",\n", createDefinitions));
         sqlBuilder.append("\n);\n\n");
+
 
         // --- Step 3: Generate INSERT Statements ---
         for (Map<String, Object> row : normalizedData) {
@@ -180,12 +261,10 @@ public class SqlGenerator {
 
             StringBuilder cols = new StringBuilder();
             StringBuilder values = new StringBuilder();
-            boolean firstValue = true;
 
-            for (Map.Entry<String, String> schemaEntry : columnSchema.entrySet()) {
-                String sqlColumnName = schemaEntry.getKey();
+            // Iterate through the determined schema to ensure all columns are included in order
+            for (String sqlColumnName : columnSchema.keySet()) {
                 String originalColumnName = null;
-
                 for (String keyInRow : row.keySet()) {
                     if (toSqlIdentifier(keyInRow).equals(sqlColumnName)) {
                         originalColumnName = keyInRow;
@@ -193,15 +272,14 @@ public class SqlGenerator {
                     }
                 }
 
-                Object value = (originalColumnName != null && row.containsKey(originalColumnName)) ? row.get(originalColumnName) : null;
+                Object value = (originalColumnName != null) ? row.get(originalColumnName) : null;
 
-                if (!firstValue) {
+                if (cols.length() > 0) {
                     cols.append(", ");
                     values.append(", ");
                 }
                 cols.append(sqlColumnName);
                 values.append(formatSqlValue(value));
-                firstValue = false;
             }
             sqlBuilder.append(cols).append(")\nVALUES (").append(values).append(");\n");
         }
@@ -211,18 +289,25 @@ public class SqlGenerator {
 
     /**
      * Formats a Java object value into a SQL literal string for INSERT statements.
+     *
+     * @param value The Java object value (e.g., Integer, Double, String).
+     * @return A SQL-formatted string representation of the value (e.g., 123, 'Hello').
      */
     private static String formatSqlValue(Object value) {
         if (value == null) {
             return "NULL";
         }
-        // Use switch expression for cleaner type checking and formatting
+
+        // Numbers should NOT be quoted.
+        // Booleans are converted to 1 (true) or 0 (false) for SMALLINT.
+        // All others (including dates/datetimes which are treated as strings) MUST be quoted.
         return switch (value) {
             case String strValue -> "'" + strValue.replace("'", "''") + "'";
-            case Boolean boolValue -> boolValue ? "TRUE" : "FALSE";
-            case Number numValue -> numValue.toString(); // Integer, Double, etc. are all Numbers
-            // Fallback for any other types, convert to string and quote.
+            case Boolean boolValue -> boolValue ? "1" : "0"; // Use 1/0 for SMALLINT
+            case Number numValue -> numValue.toString();
+            // Default: Quote any other object's toString() representation
             default -> "'" + value.toString().replace("'", "''") + "'";
         };
     }
 }
+
