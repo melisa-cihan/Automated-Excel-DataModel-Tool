@@ -159,12 +159,8 @@ public class SqlGenerator {
                 return TYPE_TIMESTAMP;
             }
         }
-        // If types are different but not promotable (e.g., INTEGER and DATE), default to VARCHAR
-        if (!existingType.equals(newType)) {
-            return DEFAULT_STRING_TYPE;
-        }
 
-        return existingType; // Should be covered by the first check
+        return DEFAULT_STRING_TYPE; // Should be covered by the first check
     }
 
 
