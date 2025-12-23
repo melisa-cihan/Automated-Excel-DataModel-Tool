@@ -14,7 +14,7 @@ import org.melisa.datamodel.normalization.heuristics.ParentheticalAliasHeuristic
 import org.melisa.datamodel.normalization.heuristics.CurrencyHeuristic;
 
 
-public class Normalizer {
+public class FirstNormalizer {
 
     // --- Heuristic Definitions (only for row splitting, column splitting now uses rules)---
 

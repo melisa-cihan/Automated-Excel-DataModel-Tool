@@ -3,7 +3,7 @@ package org.melisa.datamodel;
 import org.melisa.datamodel.io.ExcelFileReader;
 import org.melisa.datamodel.io.SqlGenerator;
 import org.melisa.datamodel.model.DecomposedRelation;
-import org.melisa.datamodel.normalization.Normalizer;
+import org.melisa.datamodel.normalization.FirstNormalizer;
 import org.melisa.datamodel.normalization.SecondNormalizer;
 
 
@@ -38,7 +38,7 @@ public class Main {
             // --- Step 2: Normalizing data to First Normal Form (1NF) ---
             System.out.println("\n--- Step 2: Normalizing data to First Normal Form (1NF) ---");
             // NOTE: Assumes org.melisa.datamodel.normalization.Normalizer class exists with a static normalizeTo1NF method
-            List<Map<String, Object>> normalized1NFData = Normalizer.normalizeTo1NF(excelData);
+            List<Map<String, Object>> normalized1NFData = FirstNormalizer.normalizeTo1NF(excelData);
             System.out.println("1NF Normalization complete. Number of normalized rows: " + normalized1NFData.size());
 
 
