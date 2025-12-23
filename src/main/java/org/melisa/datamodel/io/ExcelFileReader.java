@@ -14,7 +14,7 @@ public class ExcelFileReader {
     // DataFormatter instance to convert cell values to their formatted string representation.
     // This is crucial for correctly reading currency symbols (€, $), units (kg, pcs), etc.,
     // that might be part of a numeric cell's display format in Excel.
-    private static final DataFormatter DATA_FORMATTER = new DataFormatter();
+    private static final DataFormatter DATA_FORMATTER = new DataFormatter(java.util.Locale.US);
 
     /**
      * Reads data from the first sheet of an Excel file into a list of maps.
