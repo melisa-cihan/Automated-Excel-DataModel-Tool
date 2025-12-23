@@ -22,7 +22,8 @@ public class FirstNormalizer {
     // Example: "green,yellow" or "red;blue" or "item1\nitem2" or "alpha|beta" -> becomes multiple rows
     // Using Pattern.quote for literal characters, or escaping regex special characters.
     // \\R matches any Unicode newline sequence.
-    private static final Pattern ROW_SPLITTING_DELIMITERS = Pattern.compile("[,;|\\n\\r]");
+    // Matches semicolons, pipes, newlines, OR commas that are NOT followed by a digit
+    private static final Pattern ROW_SPLITTING_DELIMITERS = Pattern.compile(";|\\||\\n|\\r|,(?!\\d)");
 
     /**
      * This list defines the order in which column-splitting heuristics are applied.

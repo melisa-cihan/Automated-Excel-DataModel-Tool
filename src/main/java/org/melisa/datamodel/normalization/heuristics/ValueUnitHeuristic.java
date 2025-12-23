@@ -12,7 +12,7 @@ import java.util.regex.Pattern;
 public class ValueUnitHeuristic implements HeuristicRule {
     // MODIFIED: The unit group now includes the degree symbol (°), period (.), and other non-alphabetic symbols.
     // Pattern: [Number] [Optional Space] [Unit (letters, %, °, .)]
-    private static final Pattern VALUE_UNIT_PATTERN = Pattern.compile("^(-?\\d+(\\.\\d+)?)\\s*([a-zA-Z%°\\.]{1,3})$");
+    private static final Pattern VALUE_UNIT_PATTERN = Pattern.compile("^(-?\\d+([.,]\\d+)?)\\s*([a-zA-Z%°\\.]{1,3})$");
 
     @Override
     public boolean apply(String originalColumnName, Object cellValue, Map<String, Object> newRow) {
@@ -32,9 +32,11 @@ public class ValueUnitHeuristic implements HeuristicRule {
 
         if (valueUnitMatcher.find()) {
             try {
-                // Group 1 captures the numerical part
-                newRow.put(originalColumnName + "_Value", Double.parseDouble(valueUnitMatcher.group(1)));
-                // Group 3 captures the unit (e.g., "kg", "USD", "°C", "%")
+                // Group 1 is the number (e.g. "101,1"). Replace comma with dot for Java.
+                String numberString = valueUnitMatcher.group(1).replace(",", ".");
+                newRow.put(originalColumnName + "_Value", Double.parseDouble(numberString));
+
+                // Group 3 is the unit
                 newRow.put(originalColumnName + "_Unit", valueUnitMatcher.group(3).trim());
                 return true;
             } catch (NumberFormatException e) {
