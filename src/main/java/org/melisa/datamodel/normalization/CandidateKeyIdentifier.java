@@ -71,7 +71,7 @@ public class CandidateKeyIdentifier {
             // Build a composite key string from the values of the keyCandidate attributes.
             String compositeKey = keyCandidate.stream()
                     .map(row::get)
-                    .map(Object::toString)
+                    .map(val -> (val == null) ? "NULL" : val.toString()) // Safe handling
                     .collect(Collectors.joining("|")); // Use a reliable delimiter
 
             if (seenKeys.contains(compositeKey)) {
