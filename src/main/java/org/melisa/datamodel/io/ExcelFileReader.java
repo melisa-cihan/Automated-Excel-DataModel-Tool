@@ -9,7 +9,7 @@ import java.io.InputStream;
 import java.util.*;
 // import java.time.LocalDateTime; // Not directly used in the final version of getCellValueAsString
 
-public class ReadExcelFile {
+public class ExcelFileReader {
 
     // DataFormatter instance to convert cell values to their formatted string representation.
     // This is crucial for correctly reading currency symbols (€, $), units (kg, pcs), etc.,

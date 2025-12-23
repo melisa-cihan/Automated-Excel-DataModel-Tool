@@ -1,6 +1,6 @@
 package org.melisa.datamodel;
 
-import org.melisa.datamodel.io.ReadExcelFile;
+import org.melisa.datamodel.io.ExcelFileReader;
 import org.melisa.datamodel.io.SqlGenerator;
 import org.melisa.datamodel.model.DecomposedRelation;
 import org.melisa.datamodel.normalization.Normalizer;
@@ -31,7 +31,7 @@ public class Main {
             // --- Step 1: Read Excel Data ---
             System.out.println("\n--- Step 1: Reading Excel data ---");
             // NOTE: Assumes org.melisa.datamodel.io.ReadExcelFile class exists with a static readExcelData method
-            List<Map<String, Object>> excelData = ReadExcelFile.readExcelData(fileInputStream);
+            List<Map<String, Object>> excelData = ExcelFileReader.readExcelData(fileInputStream);
             System.out.println("Excel data read successfully. Number of rows detected: " + excelData.size());
 
 
