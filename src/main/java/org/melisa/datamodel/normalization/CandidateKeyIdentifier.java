@@ -1,3 +1,5 @@
+package org.melisa.datamodel.normalization;
+
 import java.util.*;
 import java.util.stream.Collectors;
 

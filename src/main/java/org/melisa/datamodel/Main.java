@@ -1,3 +1,12 @@
+package org.melisa.datamodel;
+
+import org.melisa.datamodel.io.ReadExcelFile;
+import org.melisa.datamodel.io.SqlGenerator;
+import org.melisa.datamodel.model.DecomposedRelation;
+import org.melisa.datamodel.normalization.Normalizer;
+import org.melisa.datamodel.normalization.SecondNormalizer;
+
+
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -21,14 +30,14 @@ public class Main {
         try (InputStream fileInputStream = new FileInputStream(filePath)) {
             // --- Step 1: Read Excel Data ---
             System.out.println("\n--- Step 1: Reading Excel data ---");
-            // NOTE: Assumes ReadExcelFile class exists with a static readExcelData method
+            // NOTE: Assumes org.melisa.datamodel.io.ReadExcelFile class exists with a static readExcelData method
             List<Map<String, Object>> excelData = ReadExcelFile.readExcelData(fileInputStream);
             System.out.println("Excel data read successfully. Number of rows detected: " + excelData.size());
 
 
             // --- Step 2: Normalizing data to First Normal Form (1NF) ---
             System.out.println("\n--- Step 2: Normalizing data to First Normal Form (1NF) ---");
-            // NOTE: Assumes Normalizer class exists with a static normalizeTo1NF method
+            // NOTE: Assumes org.melisa.datamodel.normalization.Normalizer class exists with a static normalizeTo1NF method
             List<Map<String, Object>> normalized1NFData = Normalizer.normalizeTo1NF(excelData);
             System.out.println("1NF Normalization complete. Number of normalized rows: " + normalized1NFData.size());
 
@@ -37,7 +46,7 @@ public class Main {
             System.out.println("\n--- Step 3: Decomposing data to Second Normal Form (2NF) ---");
             SecondNormalizer secondNormalizer = new SecondNormalizer();
 
-            // *** ADAPTATION 1: Pass tableNameBase IN, and capture the List of DecomposedRelation objects ***
+            // *** ADAPTATION 1: Pass tableNameBase IN, and capture the List of org.melisa.datamodel.model.DecomposedRelation objects ***
             List<DecomposedRelation> decomposedRelations =
                     secondNormalizer.normalizeTo2NF(normalized1NFData, tableNameBase);
 
@@ -47,9 +56,9 @@ public class Main {
             // --- Step 4: Display Results and Generate SQL script ---
             System.out.println("\n--- Step 4: Displaying 2NF Relations and Generating SQL ---");
 
-            // *** ADAPTATION 2: Loop over the List<DecomposedRelation> ***
+            // *** ADAPTATION 2: Loop over the List<org.melisa.datamodel.model.DecomposedRelation> ***
             for (DecomposedRelation relation : decomposedRelations) {
-                // The relation name is now pre-built and SQL-sanitized by the SecondNormalizer
+                // The relation name is now pre-built and SQL-sanitized by the org.melisa.datamodel.normalization.SecondNormalizer
                 String relationName = relation.name(); // Get the full name (e.g., "SHOP_SIZE_DETAILS")
                 List<Map<String, Object>> relationData = relation.data();
 
@@ -63,7 +72,7 @@ public class Main {
                     System.out.println(row);
                 }
 
-                // *** ADAPTATION 3: Pass key metadata to the SqlGenerator's updated method ***
+                // *** ADAPTATION 3: Pass key metadata to the org.melisa.datamodel.io.SqlGenerator's updated method ***
                 String sqlScript = SqlGenerator.generateSqlScript(
                         relationData,
                         relationName,

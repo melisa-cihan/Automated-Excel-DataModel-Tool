@@ -1,3 +1,5 @@
+package org.melisa.datamodel.io;
+
 import java.time.LocalDateTime;
 import java.util.ArrayList; // Import ArrayList
 import java.util.LinkedHashMap;
@@ -61,7 +63,7 @@ public class SqlGenerator {
 
         // Use modern switch expression for clean type matching
         return switch (value) {
-            // Case 1: The Normalizer's heuristics already typed the object correctly.
+            // Case 1: The org.melisa.datamodel.normalization.Normalizer's heuristics already typed the object correctly.
             // FIX: Use unique, named variables (i, l, d, f, b, ldt)
             // as unnamed patterns (_) are not standard in Java 21.
             case Integer i -> TYPE_INTEGER;

@@ -1,3 +1,5 @@
+package org.melisa.datamodel.io;
+
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
 // import org.apache.poi.ss.util.CellReference; // Not directly used in the provided code, can remove if not used elsewhere
@@ -101,7 +103,7 @@ public class ReadExcelFile {
     /**
      * Reads data from a row and creates a map with column names as keys.
      * All cell values are initially read as their formatted String representation,
-     * allowing subsequent heuristic processing in the Normalizer.
+     * allowing subsequent heuristic processing in the org.melisa.datamodel.normalization.Normalizer.
      *
      * @param dataRow     The row containing the data.
      * @param columnNames The list of column names.
@@ -112,7 +114,7 @@ public class ReadExcelFile {
         Map<String, Object> rowData = new LinkedHashMap<>();
         for (int i = 0; i < columnNames.size(); i++) {
             Cell cell = dataRow.getCell(i);
-            // All cell values are now passed as their formatted String representation to the Normalizer
+            // All cell values are now passed as their formatted String representation to the org.melisa.datamodel.normalization.Normalizer
             rowData.put(columnNames.get(i), getCellValueAsFormattedString(cell));
         }
         return rowData;
@@ -138,7 +140,7 @@ public class ReadExcelFile {
         // - For NUMERIC cells (including dates), it returns the formatted number (e.g., "50 €", "01/01/2023").
         // - For FORMULA cells, it evaluates the formula and returns the formatted result.
         // - For BOOLEAN cells, it returns "TRUE" or "FALSE".
-        // This ensures the Normalizer receives the cell content exactly as displayed in Excel.
+        // This ensures the org.melisa.datamodel.normalization.Normalizer receives the cell content exactly as displayed in Excel.
         String cellValue = DATA_FORMATTER.formatCellValue(cell);
 
         // Trim the result and return null if it's empty after trimming (i.e., was blank or just whitespace)

@@ -1,8 +1,13 @@
+package org.melisa.datamodel.normalization;
+
+import org.melisa.datamodel.io.SqlGenerator;
+import org.melisa.datamodel.model.DecomposedRelation;
+
 import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * SecondNormalizer is responsible for transforming a dataset from First Normal Form (1NF)
+ * org.melisa.datamodel.normalization.SecondNormalizer is responsible for transforming a dataset from First Normal Form (1NF)
  * into Second Normal Form (2NF). This process involves identifying candidate keys,
  * analyzing functional dependencies, and decomposing the original relation to eliminate
  * partial dependencies.
@@ -15,14 +20,14 @@ public class SecondNormalizer {
     private static final String MAIN_RELATION_NAME = "MainRelation";
 
     /**
-     * Helper to sanitize column names using the logic from SqlGenerator.
-     * We call this to ensure key names are stored in the same format SqlGenerator will use.
+     * Helper to sanitize column names using the logic from org.melisa.datamodel.io.SqlGenerator.
+     * We call this to ensure key names are stored in the same format org.melisa.datamodel.io.SqlGenerator will use.
      *
      * @param name The original column name.
      * @return A sanitized, SQL-safe identifier (UPPERCASE_WITH_UNDERSCORES).
      */
     private String toSqlIdentifier(String name) {
-        // Since SqlGenerator is in the same package, we can call its public static method directly.
+        // Since org.melisa.datamodel.io.SqlGenerator is in the same package, we can call its public static method directly.
         // This is cleaner and safer than reflection.
         return SqlGenerator.toSqlIdentifier(name);
     }
@@ -32,7 +37,7 @@ public class SecondNormalizer {
      *
      * @param input1NFData The list of maps representing the data that is already in 1NF.
      * @param tableNameBase The user-provided base name (e.g., "shop") used for prefixing.
-     * @return A list of DecomposedRelation objects, each containing the data and key metadata (PK/FK).
+     * @return A list of org.melisa.datamodel.model.DecomposedRelation objects, each containing the data and key metadata (PK/FK).
      */
     public List<DecomposedRelation> normalizeTo2NF(
             List<Map<String, Object>> input1NFData, String tableNameBase) { // <-- UPDATED SIGNATURE
@@ -219,7 +224,7 @@ public class SecondNormalizer {
         System.out.println("Decomposed Relation: " + detailsRelationInternalName + " created.");
 
 
-        // Relation 2: The residual relation (Main Relation)
+        // Relation 2: The residual relation (org.melisa.datamodel.Main Relation)
         // *** UPDATE: Use the full prefixed SQL name ***
         final String sqlMainRelationName = toSqlIdentifier(sqlTableNameBase + "_" + MAIN_RELATION_NAME);
 

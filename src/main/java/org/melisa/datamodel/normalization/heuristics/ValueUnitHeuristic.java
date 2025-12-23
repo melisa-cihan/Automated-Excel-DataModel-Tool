@@ -1,6 +1,4 @@
-package normalizer.heuristics;
-
-import normalizer.heuristics.HeuristicRule;
+package org.melisa.datamodel.normalization.heuristics;
 
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -8,7 +6,7 @@ import java.util.regex.Pattern;
 
 /**
  * Heuristic rule to split a string like "50 kg", "20.5°C", "5 in.", or "100 USD" into Value and Unit columns.
- * Implements the normalizer.heuristics.HeuristicRule interface.
+ * Implements the org.melisa.datamodel.normalization.heuristics.HeuristicRule interface.
  * This heuristic is designed to be a general fallback for physical measurements and currencies.
  */
 public class ValueUnitHeuristic implements HeuristicRule {

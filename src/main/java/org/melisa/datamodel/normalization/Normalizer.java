@@ -1,3 +1,5 @@
+package org.melisa.datamodel.normalization;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Collections;
@@ -5,11 +7,11 @@ import java.util.Map;
 import java.util.LinkedHashMap; // Explicitly used for row maps
 import java.util.regex.Pattern;
 
-import normalizer.heuristics.HeuristicRule;
-import normalizer.heuristics.QuantityItemHeuristic;
-import normalizer.heuristics.ValueUnitHeuristic;
-import normalizer.heuristics.ParentheticalAliasHeuristic;
-import normalizer.heuristics.CurrencyHeuristic;
+import org.melisa.datamodel.normalization.heuristics.HeuristicRule;
+import org.melisa.datamodel.normalization.heuristics.QuantityItemHeuristic;
+import org.melisa.datamodel.normalization.heuristics.ValueUnitHeuristic;
+import org.melisa.datamodel.normalization.heuristics.ParentheticalAliasHeuristic;
+import org.melisa.datamodel.normalization.heuristics.CurrencyHeuristic;
 
 
 public class Normalizer {

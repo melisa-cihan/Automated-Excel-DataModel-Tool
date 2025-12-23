@@ -1,4 +1,4 @@
-package normalizer.heuristics;
+package org.melisa.datamodel.normalization.heuristics;
 
 import java.util.Map;
 public interface HeuristicRule {
