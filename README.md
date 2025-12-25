@@ -36,7 +36,7 @@ The **Automated Excel Data Model Tool** is designed to solve the challenge of mi
 ## Getting Started
 
 ### Pre-Requisites
-- Install [Java JDK 17](https://www.oracle.com/java/technologies/downloads/) or higher.
+- Install [Java JDK 21](https://www.oracle.com/java/technologies/downloads/) or higher.
 - Install [Maven](https://maven.apache.org/).
 - A Java IDE (IntelliJ IDEA is recommended).
 - Git
