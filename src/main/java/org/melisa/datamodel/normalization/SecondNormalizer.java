@@ -151,22 +151,22 @@ public class SecondNormalizer {
         }
 
 
-        String dependentAttrTemp = null;
+        // *** FIX START: Identify ALL dependent attributes, not just the first one ***
+        List<String> dependentAttributes = new ArrayList<>();
+
         for (String column : input1NFData.get(0).keySet()) {
             if (!candidateKey.contains(column)) { // Check against original, non-sanitized key set
                 // Check if it's determined only by the first part of the key
                 if (isPartiallyDependent(input1NFData, originalDeterminant, column)) {
-                    dependentAttrTemp = column;
-                    break;
+                    dependentAttributes.add(column);
                 }
             }
         }
+        // *** FIX END ***
 
-        // *** FIX: Assign to a final variable ***
-        final String partiallyDependentAttribute = dependentAttrTemp;
 
-        if (partiallyDependentAttribute == null) {
-            // No partial dependencies found/simulated, relation is 2NF.
+        if (dependentAttributes.isEmpty()) {
+            // No partial dependencies found, relation is 2NF.
             // *** UPDATE: Use prefixed name for the relation ***
             String relationName = sqlTableNameBase + "_" + toSqlIdentifier(MAIN_RELATION_NAME);
             normalizedRelations.add(new DecomposedRelation(relationName, input1NFData, sqlCandidateKey, Collections.emptyMap()));
@@ -179,37 +179,19 @@ public class SecondNormalizer {
         final String detailsRelationInternalName = partialDeterminant + "_Details";
         // *** FIX: Create the full, prefixed SQL name ***
         final String sqlDetailsRelationName = toSqlIdentifier(sqlTableNameBase + "_" + detailsRelationInternalName);
-        final String sqlPartiallyDependentAttribute = toSqlIdentifier(partiallyDependentAttribute);
 
-        // Find the original (non-sanitized) name for the dependent attribute
-        String originalDependentAttributeTemp = null; // Use a temporary variable
-        for(String key : input1NFData.get(0).keySet()) {
-            if(toSqlIdentifier(key).equals(sqlPartiallyDependentAttribute)) {
-                originalDependentAttributeTemp = key;
-                break;
-            }
-        }
-
-        // *** FIX: Assign to a final variable ***
-        final String originalDependentAttribute = originalDependentAttributeTemp;
-
-        // *** UPDATED BLOCK: Add explicit error handling ***
-        if (originalDependentAttribute == null) {
-            // This indicates a critical internal error if it ever happens.
-            System.err.println("Critical Error: Could not map sanitized dependent attribute back to original.");
-            // Abort decomposition and return the original 2NF data safely.
-            String relationName = sqlTableNameBase + "_" + toSqlIdentifier(MAIN_RELATION_NAME);
-            normalizedRelations.add(new DecomposedRelation(relationName, input1NFData, sqlCandidateKey, Collections.emptyMap()));
-            return normalizedRelations;
-        }
-
+        // (Note: Previous logic for 'originalDependentAttribute' lookup is removed as we now have a list of valid attributes)
 
         List<Map<String, Object>> r1Data = input1NFData.stream()
                 .map(row -> {
                     Map<String, Object> newRow = new LinkedHashMap<>();
                     // *** FIX: Use final variables inside lambda ***
                     newRow.put(originalDeterminant, row.get(originalDeterminant));
-                    newRow.put(originalDependentAttribute, row.get(originalDependentAttribute));
+
+                    // *** FIX: Add all dependent attributes to the new row ***
+                    for (String attr : dependentAttributes) {
+                        newRow.put(attr, row.get(attr));
+                    }
                     return newRow;
                 })
                 .distinct() // Remove redundant rows
@@ -221,7 +203,7 @@ public class SecondNormalizer {
 
         // *** UPDATE: Use the full prefixed SQL name ***
         normalizedRelations.add(new DecomposedRelation(sqlDetailsRelationName, r1Data, r1PK, r1FKs));
-        System.out.println("Decomposed Relation: " + detailsRelationInternalName + " created.");
+        System.out.println("Decomposed Relation: " + detailsRelationInternalName + " created with attributes: " + dependentAttributes);
 
 
         // Relation 2: The residual relation (org.melisa.datamodel.Main Relation)
@@ -231,8 +213,11 @@ public class SecondNormalizer {
         List<Map<String, Object>> residualData = input1NFData.stream()
                 .map(row -> {
                     Map<String, Object> newRow = new LinkedHashMap<>(row);
-                    // *** FIX: Use final variable inside lambda ***
-                    newRow.remove(originalDependentAttribute); // Eliminate redundancy
+
+                    // *** FIX: Remove all dependent attributes from the main table ***
+                    for (String attr : dependentAttributes) {
+                        newRow.remove(attr);
+                    }
                     return newRow;
                 })
                 .collect(Collectors.toList());
@@ -280,4 +265,3 @@ public class SecondNormalizer {
         return checkMap.keySet().stream().anyMatch(Objects::nonNull);
     }
 }
-
