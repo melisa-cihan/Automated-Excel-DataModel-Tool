@@ -43,7 +43,7 @@ The **Automated Excel Data Model Tool** is designed to solve the challenge of mi
 
 ### Clone the Repository
 ```bash
-git clone git@github.com:melisa-cihan/Automated-Excel-DataModel-Tool.git
+git clone https://github.com/melisa-cihan/Automated-Excel-DataModel-Tool.git
 ```
 
 ## Author
