@@ -19,5 +19,5 @@ public record DecomposedRelation(
         List<Map<String, Object>> data,
         List<String> primaryKeys,
         Map<String, String> foreignKeys) {
-    // No explicit constructor or getters needed!
+
 }
