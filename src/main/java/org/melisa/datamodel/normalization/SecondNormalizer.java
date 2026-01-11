@@ -16,7 +16,7 @@ import java.util.stream.Collectors;
  */
 public class SecondNormalizer {
 
-    // The internal, non-prefixed name for the main relation.
+
     private static final String MAIN_RELATION_NAME = "MainRelation";
 
     /**
@@ -27,8 +27,7 @@ public class SecondNormalizer {
      * @return A sanitized, SQL-safe identifier (UPPERCASE_WITH_UNDERSCORES).
      */
     private String toSqlIdentifier(String name) {
-        // Since org.melisa.datamodel.io.SqlGenerator is in the same package, we can call its public static method directly.
-        // This is cleaner and safer than reflection.
+
         return SqlGenerator.toSqlIdentifier(name);
     }
 
@@ -46,13 +45,13 @@ public class SecondNormalizer {
             return Collections.emptyList();
         }
 
-        // Step 1: Synthesize the Primary/Candidate Key.
+
         CandidateKeyIdentifier identifier = new CandidateKeyIdentifier();
         Set<Set<String>> allCandidateKeys = identifier.identifyAllCandidateKeys(input1NFData);
 
         Set<String> candidateKey = selectKeyFor2NFDecomposition(allCandidateKeys);
 
-        // Sanitize the user's base name *once* for use in all relation names.
+
         final String sqlTableNameBase = toSqlIdentifier(tableNameBase);
 
         if (candidateKey.isEmpty()) {
@@ -66,9 +65,8 @@ public class SecondNormalizer {
 
         System.out.println("Selected Candidate Key for 2NF: " + candidateKey);
 
-        // Step 2: Identify and Decompose Partial Dependencies.
-        // Pass the base name down so the decomposer can build correct FK references.
-        return decomposeForPartialDependencies(input1NFData, candidateKey, sqlTableNameBase); // <-- UPDATED CALL
+
+        return decomposeForPartialDependencies(input1NFData, candidateKey, sqlTableNameBase);
     }
 
     /**
@@ -80,7 +78,7 @@ public class SecondNormalizer {
             return Collections.emptySet();
         }
 
-        // 1. Try to find the smallest composite key (size > 1)
+
         Set<String> smallestCompositeKey = allCandidateKeys.stream()
                 .filter(key -> key.size() > 1)
                 .min(Comparator.comparingInt(Set::size))
@@ -90,7 +88,7 @@ public class SecondNormalizer {
             return smallestCompositeKey;
         }
 
-        // 2. If no composite key exists, return the smallest simple key.
+
         return allCandidateKeys.stream()
                 .min(Comparator.comparingInt(Set::size))
                 .orElseGet(Collections::emptySet);
@@ -108,29 +106,28 @@ public class SecondNormalizer {
     private List<DecomposedRelation> decomposeForPartialDependencies(
             List<Map<String, Object>> input1NFData,
             Set<String> candidateKey,
-            String sqlTableNameBase) { // <-- UPDATED SIGNATURE
+            String sqlTableNameBase) {
 
         List<DecomposedRelation> normalizedRelations = new ArrayList<>();
 
-        // Sanitize the candidate key column names *once* for consistency.
+
         List<String> sqlCandidateKey = candidateKey.stream()
                 .map(this::toSqlIdentifier)
                 .collect(Collectors.toList());
 
-        // If the key is not composite (single column), the relation is automatically in 2NF.
+
         if (sqlCandidateKey.size() <= 1) {
-            // *** UPDATE: Use prefixed name for the relation ***
+
             String relationName = sqlTableNameBase + "_" + toSqlIdentifier(MAIN_RELATION_NAME);
             normalizedRelations.add(new DecomposedRelation(relationName, input1NFData, sqlCandidateKey, Collections.emptyMap()));
             return normalizedRelations;
         }
 
-        // --- SIMPLIFIED 2NF HEURISTIC ---
-        // We select the first column of the composite key as the determinant.
+
         final String partialDeterminant = sqlCandidateKey.get(0);
 
-        // Find the original (non-sanitized) name for the determinant
-        String originalDeterminantTemp = null; // Use a temporary variable
+
+        String originalDeterminantTemp = null;
         for(String key : candidateKey) {
             if(toSqlIdentifier(key).equals(partialDeterminant)) {
                 originalDeterminantTemp = key;
@@ -138,83 +135,80 @@ public class SecondNormalizer {
             }
         }
 
-        // *** FIX: Assign to a final variable ***
+
         final String originalDeterminant = originalDeterminantTemp;
 
         if (originalDeterminant == null) {
             System.err.println("Could not find original determinant name.");
-            // Handle error: return non-decomposed data
-            // *** UPDATE: Use prefixed name for the relation ***
+
             String relationName = sqlTableNameBase + "_" + toSqlIdentifier(MAIN_RELATION_NAME);
             normalizedRelations.add(new DecomposedRelation(relationName, input1NFData, sqlCandidateKey, Collections.emptyMap()));
             return normalizedRelations;
         }
 
 
-        // *** FIX START: Identify ALL dependent attributes, not just the first one ***
+
         List<String> dependentAttributes = new ArrayList<>();
 
         for (String column : input1NFData.get(0).keySet()) {
-            if (!candidateKey.contains(column)) { // Check against original, non-sanitized key set
-                // Check if it's determined only by the first part of the key
+            if (!candidateKey.contains(column)) {
+
                 if (isPartiallyDependent(input1NFData, originalDeterminant, column)) {
                     dependentAttributes.add(column);
                 }
             }
         }
-        // *** FIX END ***
+
 
 
         if (dependentAttributes.isEmpty()) {
-            // No partial dependencies found, relation is 2NF.
-            // *** UPDATE: Use prefixed name for the relation ***
+
             String relationName = sqlTableNameBase + "_" + toSqlIdentifier(MAIN_RELATION_NAME);
             normalizedRelations.add(new DecomposedRelation(relationName, input1NFData, sqlCandidateKey, Collections.emptyMap()));
             return normalizedRelations;
         }
 
-        // --- DECOMPOSITION EXECUTION & KEY ASSIGNMENT ---
 
-        // Relation 1: The partially dependent relation (e.g., ProNr_Details or Worker_Details)
+
+
         final String detailsRelationInternalName = partialDeterminant + "_Details";
-        // *** FIX: Create the full, prefixed SQL name ***
+
         final String sqlDetailsRelationName = toSqlIdentifier(sqlTableNameBase + "_" + detailsRelationInternalName);
 
-        // (Note: Previous logic for 'originalDependentAttribute' lookup is removed as we now have a list of valid attributes)
+
 
         List<Map<String, Object>> r1Data = input1NFData.stream()
                 .map(row -> {
                     Map<String, Object> newRow = new LinkedHashMap<>();
-                    // *** FIX: Use final variables inside lambda ***
+
                     newRow.put(originalDeterminant, row.get(originalDeterminant));
 
-                    // *** FIX: Add all dependent attributes to the new row ***
+
                     for (String attr : dependentAttributes) {
                         newRow.put(attr, row.get(attr));
                     }
                     return newRow;
                 })
-                .distinct() // Remove redundant rows
+                .distinct()
                 .collect(Collectors.toList());
 
-        // R1 KEYS: PK is the determinant.
-        List<String> r1PK = List.of(partialDeterminant); // Already sanitized
+
+        List<String> r1PK = List.of(partialDeterminant);
         Map<String, String> r1FKs = Collections.emptyMap();
 
-        // *** UPDATE: Use the full prefixed SQL name ***
+
         normalizedRelations.add(new DecomposedRelation(sqlDetailsRelationName, r1Data, r1PK, r1FKs));
         System.out.println("Decomposed Relation: " + detailsRelationInternalName + " created with attributes: " + dependentAttributes);
 
 
-        // Relation 2: The residual relation (org.melisa.datamodel.Main Relation)
-        // *** UPDATE: Use the full prefixed SQL name ***
+
         final String sqlMainRelationName = toSqlIdentifier(sqlTableNameBase + "_" + MAIN_RELATION_NAME);
 
         List<Map<String, Object>> residualData = input1NFData.stream()
                 .map(row -> {
                     Map<String, Object> newRow = new LinkedHashMap<>(row);
 
-                    // *** FIX: Remove all dependent attributes from the main table ***
+
                     for (String attr : dependentAttributes) {
                         newRow.remove(attr);
                     }
@@ -222,17 +216,16 @@ public class SecondNormalizer {
                 })
                 .collect(Collectors.toList());
 
-        // R2 KEYS: PK is the original composite key.
-        List<String> r2PK = sqlCandidateKey; // Already sanitized
 
-        // *** THE FIX IS HERE ***
-        // Build the full, correct reference string using the prefixed name.
+        List<String> r2PK = sqlCandidateKey;
+
+
         Map<String, String> r2FKs = Map.of(
-                partialDeterminant, // The FK column (e.g., "SIZE")
-                sqlDetailsRelationName + "(" + partialDeterminant + ")" // The reference (e.g., "SHOP_SIZE_DETAILS(SIZE)")
+                partialDeterminant,
+                sqlDetailsRelationName + "(" + partialDeterminant + ")"
         );
 
-        // *** UPDATE: Use the full prefixed SQL name ***
+
         normalizedRelations.add(new DecomposedRelation(sqlMainRelationName, residualData, r2PK, r2FKs));
 
         return normalizedRelations;
@@ -250,18 +243,16 @@ public class SecondNormalizer {
             Object dependentValue = row.get(dependentAttr);
 
             if (checkMap.containsKey(determinantValue)) {
-                // If a determinant value already exists, check if the dependent value is consistent
-                // *** FIX: Use Objects.equals() to safely handle potential null values ***
+
                 if (!Objects.equals(checkMap.get(determinantValue), dependentValue)) {
-                    // Inconsistency found: Not a functional dependency.
+
                     return false;
                 }
             } else {
                 checkMap.put(determinantValue, dependentValue);
             }
         }
-        // If the loop completes without inconsistencies, it's a functional dependency.
-        // We also check that the determinant wasn't just null for the whole table.
+
         return checkMap.keySet().stream().anyMatch(Objects::nonNull);
     }
 }

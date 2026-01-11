@@ -32,10 +32,8 @@ public class CandidateKeyIdentifier {
         List<String> attributeList = new ArrayList<>(allAttributes);
         int n = attributeList.size();
 
-        // Iterate through all subsets of attributes (powerset) from size 1 up to N.
-        // Starting with smallest size ensures that the first discovered superkeys are automatically minimal.
         for (int size = 1; size <= n; size++) {
-            // Generate all combinations of the current size (e.g., all pairs, all triplets)
+
             Set<Set<String>> currentSizeSubsets = generateSubsetsOfSize(attributeList, size);
 
             for (Set<String> subset : currentSizeSubsets) {
@@ -46,7 +44,7 @@ public class CandidateKeyIdentifier {
 
                 // Check Uniqueness: Is this subset a Superkey?
                 if (isSuperKey(subset, data)) {
-                    // It is a Superkey AND it is minimal (because we check smaller subsets first).
+
                     candidateKeys.add(subset);
                 }
             }
@@ -64,18 +62,18 @@ public class CandidateKeyIdentifier {
      * @return true if the attribute set is unique across all tuples (Superkey), false otherwise.
      */
     private boolean isSuperKey(Set<String> keyCandidate, List<Map<String, Object>> data) {
-        // We use a HashSet to check for key value uniqueness.
+
         Set<String> seenKeys = new HashSet<>();
 
         for (Map<String, Object> row : data) {
-            // Build a composite key string from the values of the keyCandidate attributes.
+
             String compositeKey = keyCandidate.stream()
                     .map(row::get)
-                    .map(val -> (val == null) ? "NULL" : val.toString()) // Safe handling
-                    .collect(Collectors.joining("|")); // Use a reliable delimiter
+                    .map(val -> (val == null) ? "NULL" : val.toString())
+                    .collect(Collectors.joining("|"));
 
             if (seenKeys.contains(compositeKey)) {
-                // Duplicated composite key found -> not a Superkey (violates Uniqueness)
+
                 return false;
             }
             seenKeys.add(compositeKey);
@@ -91,7 +89,7 @@ public class CandidateKeyIdentifier {
     private boolean isSupersetOfExistingCandidateKey(Set<String> subset, Set<Set<String>> candidateKeys) {
         for (Set<String> candidateKey : candidateKeys) {
             if (subset.containsAll(candidateKey)) {
-                return true; // Subset is not minimal.
+                return true;
             }
         }
         return false;
