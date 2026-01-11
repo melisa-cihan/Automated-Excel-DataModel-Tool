@@ -20,13 +20,13 @@ public class ParentheticalAliasHeuristic implements HeuristicRule{
         String trimmedStringValue = stringValue.trim();
         Matcher aliasMatcher = PARENTHETICAL_ALIAS_PATTERN.matcher(trimmedStringValue);
 
-        if (aliasMatcher.find()) { // If the pattern matches (e.g., "IBA (ehemals BQL)")
-            // Extract primary and alias, and add them as new columns.
+        if (aliasMatcher.find()) {
+
             newRow.put(originalColumnName + "_Primary", aliasMatcher.group(1).trim());
             newRow.put(originalColumnName + "_Alias", aliasMatcher.group(2).trim());
-            return true; // Successfully applied this heuristic.
+            return true;
         }
 
-        return false; //Pattern did not match
+        return false;
     }
 }
