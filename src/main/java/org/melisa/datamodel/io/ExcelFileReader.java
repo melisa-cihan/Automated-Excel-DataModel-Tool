@@ -2,18 +2,13 @@ package org.melisa.datamodel.io;
 
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
-// import org.apache.poi.ss.util.CellReference; // Not directly used in the provided code, can remove if not used elsewhere
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.*;
-// import java.time.LocalDateTime; // Not directly used in the final version of getCellValueAsString
+
 
 public class ExcelFileReader {
-
-    // DataFormatter instance to convert cell values to their formatted string representation.
-    // This is crucial for correctly reading currency symbols (€, $), units (kg, pcs), etc.,
-    // that might be part of a numeric cell's display format in Excel.
     private static final DataFormatter DATA_FORMATTER = new DataFormatter(java.util.Locale.US);
 
     /**
@@ -72,24 +67,24 @@ public class ExcelFileReader {
             }
         }
 
-        // Iterate up to maxColNum to ensure all columns (even empty ones in the middle) are considered
+
         for (int i = 0; i <= maxColNum; i++) {
             Cell cell = headerRow.getCell(i);
             String rawColumnName = null;
 
             if (cell != null) {
-                // Use the static DATA_FORMATTER to get the displayed cell value as a string
+
                 rawColumnName = DATA_FORMATTER.formatCellValue(cell);
             }
 
             String columnName;
             if (rawColumnName == null || rawColumnName.trim().isEmpty()) {
-                columnName = "Column" + (i + 1); // Assign default name for blank/empty headers
+                columnName = "Column" + (i + 1);
             } else {
                 columnName = rawColumnName.trim();
             }
 
-            // Ensure unique column names by adding a suffix if a duplicate is found
+
             String originalColumnName = columnName;
             int counter = 1;
             while (columnNames.contains(columnName)) {
@@ -114,7 +109,7 @@ public class ExcelFileReader {
         Map<String, Object> rowData = new LinkedHashMap<>();
         for (int i = 0; i < columnNames.size(); i++) {
             Cell cell = dataRow.getCell(i);
-            // All cell values are now passed as their formatted String representation to the org.melisa.datamodel.normalization.Normalizer
+
             rowData.put(columnNames.get(i), getCellValueAsFormattedString(cell));
         }
         return rowData;
@@ -135,15 +130,8 @@ public class ExcelFileReader {
             return null;
         }
 
-        // DataFormatter.formatCellValue() is robust:
-        // - For STRING cells, it returns the string content.
-        // - For NUMERIC cells (including dates), it returns the formatted number (e.g., "50 €", "01/01/2023").
-        // - For FORMULA cells, it evaluates the formula and returns the formatted result.
-        // - For BOOLEAN cells, it returns "TRUE" or "FALSE".
-        // This ensures the org.melisa.datamodel.normalization.Normalizer receives the cell content exactly as displayed in Excel.
         String cellValue = DATA_FORMATTER.formatCellValue(cell);
 
-        // Trim the result and return null if it's empty after trimming (i.e., was blank or just whitespace)
         return (cellValue != null && !cellValue.trim().isEmpty()) ? cellValue.trim() : null;
     }
 

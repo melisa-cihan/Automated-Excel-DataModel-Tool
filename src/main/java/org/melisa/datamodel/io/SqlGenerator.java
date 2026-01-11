@@ -1,7 +1,7 @@
 package org.melisa.datamodel.io;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList; // Import ArrayList
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -18,7 +18,7 @@ import java.util.stream.Collectors;
  */
 public class SqlGenerator {
 
-    // Regex for common ISO date/datetime string formats
+
     private static final Pattern SQL_DATE_PATTERN = Pattern.compile("^\\d{4}-\\d{2}-\\d{2}(T\\d{2}:\\d{2}(:\\d{2}(\\.\\d+)?)?)?$");
     private static final String DEFAULT_STRING_TYPE = "VARCHAR(255)";
     private static final String TYPE_INTEGER = "INTEGER";
@@ -58,14 +58,12 @@ public class SqlGenerator {
      */
     private static String getSqlType(Object value) {
         if (value == null) {
-            return DEFAULT_STRING_TYPE; // Default for nulls
+            return DEFAULT_STRING_TYPE;
         }
 
-        // Use modern switch expression for clean type matching
+
         return switch (value) {
-            // Case 1: The org.melisa.datamodel.normalization.Normalizer's heuristics already typed the object correctly.
-            // FIX: Use unique, named variables (i, l, d, f, b, ldt)
-            // as unnamed patterns (_) are not standard in Java 21.
+
             case Integer i -> TYPE_INTEGER;
             case Long l -> TYPE_INTEGER;
             case Double d -> TYPE_DECIMAL;
@@ -73,10 +71,10 @@ public class SqlGenerator {
             case Boolean b -> TYPE_BOOLEAN;
             case LocalDateTime ldt -> TYPE_TIMESTAMP;
 
-            // Case 2: The object is a String that needs type inference.
+
             case String strValue -> inferSqlTypeFromString(strValue);
 
-            // Fallback for any other unexpected Java types
+
             default -> DEFAULT_STRING_TYPE;
         };
     }
@@ -94,32 +92,32 @@ public class SqlGenerator {
             return DEFAULT_STRING_TYPE;
         }
 
-        // Check 1: Boolean
+
         if (trimmed.equalsIgnoreCase("true") || trimmed.equalsIgnoreCase("false")) {
             return TYPE_BOOLEAN;
         }
 
-        // Check 2: Date/Datetime
+
         if (SQL_DATE_PATTERN.matcher(trimmed).matches()) {
             return trimmed.contains("T") ? TYPE_TIMESTAMP : TYPE_DATE;
         }
 
-        // Check 3: Numeric (Integer or Double)
+
         try {
-            // Try parsing as a whole number
+
             Long.parseLong(trimmed);
-            return TYPE_INTEGER; // Use Long to handle large numbers, but map to SQL INTEGER
+            return TYPE_INTEGER;
         } catch (NumberFormatException e1) {
-            // Not an integer, try parsing as a floating-point number
+
             try {
                 Double.parseDouble(trimmed);
-                return TYPE_DECIMAL; // Use DECIMAL for floating-point precision
+                return TYPE_DECIMAL;
             } catch (NumberFormatException e2) {
-                // Not a number, fall through to default
+
             }
         }
 
-        // Default: Treat as a standard text string
+
         return DEFAULT_STRING_TYPE;
     }
 
@@ -137,32 +135,30 @@ public class SqlGenerator {
             return existingType;
         }
 
-        // Promotion priority: VARCHAR > DECIMAL > INTEGER > SMALLINT
-        // (Date types are handled separately)
 
         if (existingType.equals(DEFAULT_STRING_TYPE) || newType.equals(DEFAULT_STRING_TYPE)) {
             return DEFAULT_STRING_TYPE;
         }
         if (existingType.equals(TYPE_DECIMAL) || newType.equals(TYPE_DECIMAL)) {
-            // Promote INTEGER/SMALLINT to DECIMAL if mixed
+
             if (newType.equals(TYPE_INTEGER) || existingType.equals(TYPE_INTEGER) || newType.equals(TYPE_BOOLEAN) || existingType.equals(TYPE_BOOLEAN)) {
                 return TYPE_DECIMAL;
             }
         }
         if (existingType.equals(TYPE_INTEGER) || newType.equals(TYPE_INTEGER)) {
-            // Promote SMALLINT to INTEGER if mixed
+
             if (newType.equals(TYPE_BOOLEAN) || existingType.equals(TYPE_BOOLEAN)) {
                 return TYPE_INTEGER;
             }
         }
         if (existingType.equals(TYPE_TIMESTAMP) || newType.equals(TYPE_TIMESTAMP)) {
-            // Promote DATE to TIMESTAMP if mixed
+
             if (newType.equals(TYPE_DATE) || existingType.equals(TYPE_DATE)) {
                 return TYPE_TIMESTAMP;
             }
         }
 
-        return DEFAULT_STRING_TYPE; // Should be covered by the first check
+        return DEFAULT_STRING_TYPE;
     }
 
 
@@ -191,7 +187,7 @@ public class SqlGenerator {
 
         String sqlTableName = toSqlIdentifier(tableName);
 
-        // --- Step 1: Determine Comprehensive Schema (All Columns and Most General Types) ---
+
         Map<String, String> columnSchema = new LinkedHashMap<>();
 
         for (Map<String, Object> row : normalizedData) {
@@ -210,30 +206,30 @@ public class SqlGenerator {
             }
         }
 
-        // --- Step 2: Generate CREATE TABLE Statement (Refactored for Cleanliness) ---
+
         sqlBuilder.append("CREATE TABLE ").append(sqlTableName).append(" (\n");
 
-        // Use a List to manage definitions, avoiding trailing comma bugs.
+
         List<String> createDefinitions = new ArrayList<>();
 
-        // Add all column definitions (Name and Type)
+
         for (Map.Entry<String, String> entry : columnSchema.entrySet()) {
             StringBuilder columnDef = new StringBuilder();
             columnDef.append("    ").append(entry.getKey()).append(" ").append(entry.getValue());
-            // Add NOT NULL constraint if column is part of the primary key
+
             if (primaryKeys != null && primaryKeys.contains(entry.getKey())) {
                 columnDef.append(" NOT NULL");
             }
             createDefinitions.add(columnDef.toString());
         }
 
-        // Add PRIMARY KEY constraint
+
         if (primaryKeys != null && !primaryKeys.isEmpty()) {
             String pkList = String.join(", ", primaryKeys);
             createDefinitions.add("    CONSTRAINT PK_" + sqlTableName + " PRIMARY KEY (" + pkList + ")");
         }
 
-        // Add FOREIGN KEY constraints
+
         if (foreignKeys != null && !foreignKeys.isEmpty()) {
             for (Map.Entry<String, String> fkEntry : foreignKeys.entrySet()) {
                 String fkColumn = fkEntry.getKey();
@@ -248,19 +244,19 @@ public class SqlGenerator {
             }
         }
 
-        // Join all definitions with a comma and newline
+
         sqlBuilder.append(String.join(",\n", createDefinitions));
         sqlBuilder.append("\n);\n\n");
 
 
-        // --- Step 3: Generate INSERT Statements ---
+
         for (Map<String, Object> row : normalizedData) {
             sqlBuilder.append("INSERT INTO ").append(sqlTableName).append(" (");
 
             StringBuilder cols = new StringBuilder();
             StringBuilder values = new StringBuilder();
 
-            // Iterate through the determined schema to ensure all columns are included in order
+
             for (String sqlColumnName : columnSchema.keySet()) {
                 String originalColumnName = null;
                 for (String keyInRow : row.keySet()) {
@@ -303,7 +299,6 @@ public class SqlGenerator {
             case String strValue -> "'" + strValue.replace("'", "''") + "'";
             case Boolean boolValue -> boolValue ? "1" : "0"; // Use 1/0 for SMALLINT
             case Number numValue -> numValue.toString();
-            // Default: Quote any other object's toString() representation
             default -> "'" + value.toString().replace("'", "''") + "'";
         };
     }
