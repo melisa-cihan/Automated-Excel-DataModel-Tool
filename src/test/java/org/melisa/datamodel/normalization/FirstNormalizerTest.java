@@ -19,7 +19,7 @@ class FirstNormalizerTest {
         // Arrange
         Map<String, Object> row = new LinkedHashMap<>();
         row.put("ID", 1);
-        row.put("Colors", "Red, Blue"); // Violation of 1NF
+        row.put("Colors", "Red, Blue");
 
         List<Map<String, Object>> inputData = List.of(row);
 

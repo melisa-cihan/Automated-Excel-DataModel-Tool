@@ -38,33 +38,28 @@ class ExcelFileReaderTest {
             dataRow.createCell(2).setCellValue("Test");   // String (for the duplicate column)
             dataRow.createCell(3).setCellValue(99.99);    // Numeric (Price)
 
-            // 3. Write this workbook to a memory stream (instead of a file on disk)
+
             ByteArrayOutputStream outStream = new ByteArrayOutputStream();
             workbook.write(outStream);
 
-            // Convert it to an Input Stream that your reader expects
+
             ByteArrayInputStream inputStream = new ByteArrayInputStream(outStream.toByteArray());
 
-            // --- ACT: Call your actual application code ---
+            // --- ACT
             List<Map<String, Object>> result = ExcelFileReader.readExcelData(inputStream);
 
-            // --- ASSERT: Verify the results ---
+            // --- ASSERT
             assertNotNull(result, "Result should not be null");
             assertEquals(1, result.size(), "Should have read exactly 1 row of data");
 
             Map<String, Object> firstRow = result.get(0);
 
             // Check 1: Did it read the standard columns?
-            // Note: Your ExcelFileReader reads everything as formatted Strings initially.
-            // Apache POI default formatting for 101 might be "101" or "101.0" depending on cell type,
-            // but usually setCellValue(int) creates a numeric cell.
-            // Your reader uses DataFormatter, which handles this gracefully.
             assertEquals("101", firstRow.get("ID"));
             assertEquals("Melisa", firstRow.get("Name"));
             assertEquals("99.99", firstRow.get("Price"));
 
             // Check 2: Did it handle the duplicate column name?
-            // The logic in ExcelFileReader should rename the second "Name" to "Name_1"
             assertTrue(firstRow.containsKey("Name_1"),
                     "The second 'Name' column should have been renamed to 'Name_1' to avoid collision");
             assertEquals("Test", firstRow.get("Name_1"));

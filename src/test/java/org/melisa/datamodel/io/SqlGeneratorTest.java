@@ -25,7 +25,6 @@ class SqlGeneratorTest {
         String sqlScript = SqlGenerator.generateSqlScript(data, "Users", emptyKeys, Collections.emptyMap());
 
         // Assert
-        // FIX: Expect "AGE" (uppercase) because SqlGenerator.toSqlIdentifier sanitizes names
         assertTrue(sqlScript.contains("AGE INTEGER"),
                 "Should detect that '25' is an integer and use INTEGER type for column AGE");
     }
@@ -65,7 +64,6 @@ class SqlGeneratorTest {
         List<Map<String, Object>> data = List.of(row1, row2);
         List<String> primaryKeys = List.of("ID");
 
-        // FIX: Use uppercase "CATEGORYID" to match the sanitized column name in the table
         Map<String, String> foreignKeys = Map.of("CATEGORYID", "CATEGORY(ID)");
 
         // Act
@@ -86,7 +84,6 @@ class SqlGeneratorTest {
 
         // 3. Verify INSERT Statements
         assertTrue(sqlScript.contains("INSERT INTO PRODUCT"), "Should contain INSERT statements");
-        // Values usually don't change case, so 'Laptop' stays 'Laptop'
         assertTrue(sqlScript.contains("VALUES (1, 'Laptop', 999.99, 10)"), "Row 1 values should be formatted correctly");
         assertTrue(sqlScript.contains("VALUES (2, 'Mouse', 25.5, 10)"), "Row 2 values should be formatted correctly");
     }
