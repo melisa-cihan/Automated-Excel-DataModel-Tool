@@ -30,7 +30,7 @@ public class Main {
         try (InputStream fileInputStream = new FileInputStream(filePath)) {
             // --- Step 1: Read Excel Data ---
             System.out.println("\n--- Step 1: Reading Excel data ---");
-            // NOTE: Assumes org.melisa.datamodel.io.ReadExcelFile class exists with a static readExcelData method
+
             List<Map<String, Object>> excelData = ExcelFileReader.readExcelData(fileInputStream);
             System.out.println("Excel data read successfully. Number of rows detected: " + excelData.size());
 
@@ -46,7 +46,7 @@ public class Main {
             System.out.println("\n--- Step 3: Decomposing data to Second Normal Form (2NF) ---");
             SecondNormalizer secondNormalizer = new SecondNormalizer();
 
-            // *** ADAPTATION 1: Pass tableNameBase IN, and capture the List of org.melisa.datamodel.model.DecomposedRelation objects ***
+
             List<DecomposedRelation> decomposedRelations =
                     secondNormalizer.normalizeTo2NF(normalized1NFData, tableNameBase);
 
@@ -56,23 +56,23 @@ public class Main {
             // --- Step 4: Display Results and Generate SQL script ---
             System.out.println("\n--- Step 4: Displaying 2NF Relations and Generating SQL ---");
 
-            // *** ADAPTATION 2: Loop over the List<org.melisa.datamodel.model.DecomposedRelation> ***
+
             for (DecomposedRelation relation : decomposedRelations) {
-                // The relation name is now pre-built and SQL-sanitized by the org.melisa.datamodel.normalization.SecondNormalizer
-                String relationName = relation.name(); // Get the full name (e.g., "SHOP_SIZE_DETAILS")
+
+                String relationName = relation.name();
                 List<Map<String, Object>> relationData = relation.data();
 
                 System.out.println("\n== Relation Name: " + relationName + " ==");
-                // Print the key metadata from the relation object
+
                 System.out.println("   Primary Keys: " + relation.primaryKeys());
                 System.out.println("   Foreign Keys: " + relation.foreignKeys());
 
-                // Display the data preview for the new relation
+
                 for (Map<String, Object> row : relationData) {
                     System.out.println(row);
                 }
 
-                // *** ADAPTATION 3: Pass key metadata to the org.melisa.datamodel.io.SqlGenerator's updated method ***
+
                 String sqlScript = SqlGenerator.generateSqlScript(
                         relationData,
                         relationName,
@@ -92,9 +92,9 @@ public class Main {
             System.err.println("Error with Excel file format or content: " + e.getMessage());
         } catch (Exception e) {
             System.err.println("An unexpected error occurred during processing: " + e.getMessage());
-            e.printStackTrace(); // Print full stack trace for detailed debugging
+            e.printStackTrace();
         } finally {
-            scanner.close(); // Ensure the main scanner is closed
+            scanner.close();
         }
     }
 }
