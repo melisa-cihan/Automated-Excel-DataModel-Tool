@@ -6,7 +6,6 @@ import org.melisa.datamodel.model.DecomposedRelation;
 import org.melisa.datamodel.normalization.FirstNormalizer;
 import org.melisa.datamodel.normalization.SecondNormalizer;
 
-
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -14,12 +13,27 @@ import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
 
-
+/**
+ * The main entry point for the Automated Excel DataModel Tool.
+ * This application coordinates the process of reading an Excel file,
+ * performing data normalization (1NF, 2NF), and generating SQL scripts.
+ */
 public class Main {
+    /**
+     * Executes the end-to-end data modeling workflow:
+     * 1. Collects file path and table name from user input.
+     * 2. Reads raw data from Excel.
+     * 3. Normalizes data to First Normal Form (1NF).
+     * 4. Decomposes data into Second Normal Form (2NF).
+     * 5. Displays results and generates SQL scripts for each relation.
+     *
+     * @param args Command-line arguments (not used).
+     */
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
 
-        System.out.println("Please enter the full path to your Excel file (e.g., C:\\data\\mydata.xlsx or /home/user/data.xls):");
+        System.out.println(
+                "Please enter the full path to your Excel file (e.g., C:\\data\\mydata.xlsx or /home/user/data.xls):");
         String filePath = scanner.nextLine();
 
         System.out.println("Please enter the desired SQL table name base (e.g., 'Order').");
@@ -34,28 +48,25 @@ public class Main {
             List<Map<String, Object>> excelData = ExcelFileReader.readExcelData(fileInputStream);
             System.out.println("Excel data read successfully. Number of rows detected: " + excelData.size());
 
-
             // --- Step 2: Normalizing data to First Normal Form (1NF) ---
             System.out.println("\n--- Step 2: Normalizing data to First Normal Form (1NF) ---");
-            // NOTE: Assumes org.melisa.datamodel.normalization.Normalizer class exists with a static normalizeTo1NF method
+            // NOTE: Assumes org.melisa.datamodel.normalization.Normalizer class exists with
+            // a static normalizeTo1NF method
             List<Map<String, Object>> normalized1NFData = FirstNormalizer.normalizeTo1NF(excelData);
             System.out.println("1NF Normalization complete. Number of normalized rows: " + normalized1NFData.size());
-
 
             // --- Step 3: Normalizing data to Second Normal Form (2NF) ---
             System.out.println("\n--- Step 3: Decomposing data to Second Normal Form (2NF) ---");
             SecondNormalizer secondNormalizer = new SecondNormalizer();
 
+            List<DecomposedRelation> decomposedRelations = secondNormalizer.normalizeTo2NF(normalized1NFData,
+                    tableNameBase);
 
-            List<DecomposedRelation> decomposedRelations =
-                    secondNormalizer.normalizeTo2NF(normalized1NFData, tableNameBase);
-
-            System.out.println("2NF Decomposition complete. Generated " + decomposedRelations.size() + " new relation(s).");
-
+            System.out.println(
+                    "2NF Decomposition complete. Generated " + decomposedRelations.size() + " new relation(s).");
 
             // --- Step 4: Display Results and Generate SQL script ---
             System.out.println("\n--- Step 4: Displaying 2NF Relations and Generating SQL ---");
-
 
             for (DecomposedRelation relation : decomposedRelations) {
 
@@ -67,27 +78,24 @@ public class Main {
                 System.out.println("   Primary Keys: " + relation.primaryKeys());
                 System.out.println("   Foreign Keys: " + relation.foreignKeys());
 
-
                 for (Map<String, Object> row : relationData) {
                     System.out.println(row);
                 }
-
 
                 String sqlScript = SqlGenerator.generateSqlScript(
                         relationData,
                         relationName,
                         relation.primaryKeys(),
-                        relation.foreignKeys()
-                );
+                        relation.foreignKeys());
 
                 System.out.println("\n--- START SQL SCRIPT for " + relationName + " ---\n");
                 System.out.println(sqlScript);
                 System.out.println("\n--- END SQL SCRIPT for " + relationName + " ---\n");
             }
 
-
         } catch (IOException e) {
-            System.err.println("Error reading the Excel file. Please check the path and file permissions: " + e.getMessage());
+            System.err.println(
+                    "Error reading the Excel file. Please check the path and file permissions: " + e.getMessage());
         } catch (IllegalArgumentException e) {
             System.err.println("Error with Excel file format or content: " + e.getMessage());
         } catch (Exception e) {
@@ -98,4 +106,3 @@ public class Main {
         }
     }
 }
-
