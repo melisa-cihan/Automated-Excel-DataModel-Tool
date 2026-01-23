@@ -7,7 +7,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.*;
 
-
 public class ExcelFileReader {
     private static final DataFormatter DATA_FORMATTER = new DataFormatter(java.util.Locale.US);
 
@@ -15,9 +14,12 @@ public class ExcelFileReader {
      * Reads data from the first sheet of an Excel file into a list of maps.
      *
      * @param inputStream The InputStream of the Excel file.
-     * @return A list of maps, where each map represents a row and keys are column names.
-     * @throws IOException              If an error occurs while reading the file.
-     * @throws IllegalArgumentException If the file format is invalid or no header row is found.
+     * @return A list of maps, where each map represents a row and keys are column
+     *         names.
+     * @throws IOException              If an error occurs while reading the stream
+     *                                  or the file format is invalid.
+     * @throws IllegalArgumentException If the input stream is null or no header row
+     *                                  is found.
      */
     public static List<Map<String, Object>> readExcelData(InputStream inputStream) throws IOException {
         List<Map<String, Object>> data = new ArrayList<>();
@@ -45,15 +47,13 @@ public class ExcelFileReader {
     }
 
     /**
-     * Extracts column names from the header row.
-     * This version is more robust in extracting string values from cells,
-     * handling various cell types and potential issues. It uses DataFormatter
-     * to get the exact displayed string value of header cells.
      *
      * @param headerRow The first row of the sheet containing column names.
-     * @return A list of column names. If a cell is truly blank or cannot yield a non-empty string,
-     * a default "ColumnN" name is assigned. Otherwise, the cell's trimmed string value is used.
-     * Ensures uniqueness by adding suffixes if duplicates are found.
+     * @return A list of column names. If a cell is truly blank or cannot yield a
+     *         non-empty string,
+     *         a default "ColumnN" name is assigned. Otherwise, the cell's trimmed
+     *         string value is used.
+     *         Ensures uniqueness by adding suffixes if duplicates are found.
      */
     private static List<String> getColumnNames(Row headerRow) {
         List<String> columnNames = new ArrayList<>();
@@ -66,7 +66,6 @@ public class ExcelFileReader {
                 }
             }
         }
-
 
         for (int i = 0; i <= maxColNum; i++) {
             Cell cell = headerRow.getCell(i);
@@ -84,7 +83,6 @@ public class ExcelFileReader {
                 columnName = rawColumnName.trim();
             }
 
-
             String originalColumnName = columnName;
             int counter = 1;
             while (columnNames.contains(columnName)) {
@@ -98,12 +96,14 @@ public class ExcelFileReader {
     /**
      * Reads data from a row and creates a map with column names as keys.
      * All cell values are initially read as their formatted String representation,
-     * allowing subsequent heuristic processing in the org.melisa.datamodel.normalization.Normalizer.
+     * allowing subsequent heuristic processing in the
+     * org.melisa.datamodel.normalization.Normalizer.
      *
      * @param dataRow     The row containing the data.
      * @param columnNames The list of column names.
-     * @return A map representing the row data with column names as keys and cell values as values
-     * (all initially as Strings, or null for blank cells).
+     * @return A map representing the row data with column names as keys and cell
+     *         values as values
+     *         (all initially as Strings, or null for blank cells).
      */
     private static Map<String, Object> getRowData(Row dataRow, List<String> columnNames) {
         Map<String, Object> rowData = new LinkedHashMap<>();
@@ -119,11 +119,13 @@ public class ExcelFileReader {
      * Gets the formatted string value of a cell using DataFormatter.
      * This is the primary method for reading cell content, ensuring that
      * formatted numbers (like "50 €"), dates, or formulas are read as strings
-     * that include their display formatting, which is crucial for heuristic processing.
+     * that include their display formatting, which is crucial for heuristic
+     * processing.
      *
      * @param cell The cell to read.
-     * @return The cell's formatted display value as a String, or null if the cell is truly blank/null
-     * or contains only whitespace.
+     * @return The cell's formatted display value as a String, or null if the cell
+     *         is truly blank/null
+     *         or contains only whitespace.
      */
     private static String getCellValueAsFormattedString(Cell cell) {
         if (cell == null) {
