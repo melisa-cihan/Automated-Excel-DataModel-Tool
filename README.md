@@ -292,7 +292,6 @@ mvn test
 ## 📚 Additional Resources
 
 - [Apache POI Documentation](https://poi.apache.org/apidocs/dev/)
-- [Database Normalization Guide](https://en.wikipedia.org/wiki/Database_normalization)
 - [Maven Getting Started](https://maven.apache.org/guides/getting-started/)
 - [JUnit 5 User Guide](https://junit.org/junit5/docs/current/user-guide/)
 
