@@ -11,7 +11,8 @@ import java.util.stream.Collectors;
  * The core logic iterates through the powerset of attributes, ordered by size,
  * to efficiently identify minimal key sets.
  *
- * Time Complexity is driven by the necessity to check 2^N subsets of attributes,
+ * Time Complexity is driven by the necessity to check 2^N subsets of
+ * attributes,
  * which is inherent to the problem of dependency analysis.
  */
 public class CandidateKeyIdentifier {
@@ -37,7 +38,8 @@ public class CandidateKeyIdentifier {
             Set<Set<String>> currentSizeSubsets = generateSubsetsOfSize(attributeList, size);
 
             for (Set<String> subset : currentSizeSubsets) {
-                // Check Minimality: If this subset is a superset of an already found Candidate Key, skip it.
+                // Check Minimality: If this subset is a superset of an already found Candidate
+                // Key, skip it.
                 if (isSupersetOfExistingCandidateKey(subset, candidateKeys)) {
                     continue;
                 }
@@ -58,8 +60,9 @@ public class CandidateKeyIdentifier {
      * A Superkey must uniquely determine every tuple in the relation.
      *
      * @param keyCandidate The set of attributes to test.
-     * @param data The input relation data.
-     * @return true if the attribute set is unique across all tuples (Superkey), false otherwise.
+     * @param data         The input relation data.
+     * @return true if the attribute set is unique across all tuples (Superkey),
+     *         false otherwise.
      */
     private boolean isSuperKey(Set<String> keyCandidate, List<Map<String, Object>> data) {
 
@@ -82,9 +85,16 @@ public class CandidateKeyIdentifier {
     }
 
     /**
-     * Checks if the current subset contains any of the already confirmed minimal Candidate Keys.
-     * This enforces the Minimality principle (a Superkey is a Candidate Key only if it has no
+     * Checks if the current subset contains any of the already confirmed minimal
+     * Candidate Keys.
+     * This enforces the Minimality principle (a Superkey is a Candidate Key only if
+     * it has no
      * smaller Superkey as a subset).
+     *
+     * @param subset        The set of attributes to check for minimality.
+     * @param candidateKeys The set of already confirmed minimal candidate keys.
+     * @return true if the subset is a superset of an existing candidate key, false
+     *         otherwise.
      */
     private boolean isSupersetOfExistingCandidateKey(Set<String> subset, Set<Set<String>> candidateKeys) {
         for (Set<String> candidateKey : candidateKeys) {
@@ -97,6 +107,11 @@ public class CandidateKeyIdentifier {
 
     /**
      * Recursive utility to generate all subsets of a specific size.
+     *
+     * @param attributes The list of all attributes to generate subsets from.
+     * @param size       The desired size of the subsets.
+     * @return A Set of Sets, where each inner set is a subset of the specified
+     *         size.
      */
     private Set<Set<String>> generateSubsetsOfSize(List<String> attributes, int size) {
         Set<Set<String>> result = new HashSet<>();
@@ -104,6 +119,16 @@ public class CandidateKeyIdentifier {
         return result;
     }
 
+    /**
+     * Recursive helper for generating combinations (subsets) of attributes.
+     *
+     * @param attributes The list of all attributes.
+     * @param size       The target size of the combination.
+     * @param start      The starting index in the attributes list.
+     * @param current    The current combination being built (using LinkedHashSet to
+     *                   maintain order).
+     * @param result     The set to which valid combinations are added.
+     */
     private void combine(List<String> attributes, int size, int start, Set<String> current, Set<Set<String>> result) {
         if (current.size() == size) {
             result.add(new LinkedHashSet<>(current));
