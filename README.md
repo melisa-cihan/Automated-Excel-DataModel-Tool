@@ -284,6 +284,7 @@ mvn test
 **Melisa Cihan**
 
 - GitHub: [@melisa-cihan](https://github.com/melisa-cihan)
+- LinkedIn: [Melisa Cihan](https://www.linkedin.com/in/melisa-cihan-3b37a4268/)
 - Project Repository: [Automated-Excel-DataModel-Tool](https://github.com/melisa-cihan/Automated-Excel-DataModel-Tool)
 
 ---
