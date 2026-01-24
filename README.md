@@ -10,18 +10,16 @@ A robust Java application that automates the transformation of unstructured Exce
 
 ## 📋 Table of Contents
 
-- [About](#about)
-- [Features](#features)
-- [Architecture](#architecture)
-- [Prerequisites](#prerequisites)
-- [Installation](#installation)
-- [Running the Application](#running-the-application)
-- [Usage Example](#usage-example)
-- [Project Structure](#project-structure)
-- [Testing](#testing)
-- [Contributing](#contributing)
-- [License](#license)
-- [Author](#author)
+- [About](#-about)
+- [Features](#-features)
+- [Tech Stack](#-tech-stack)
+- [Prerequisites](#-prerequisites)
+- [Installation](#-installation)
+- [Running the Application](#-running-the-application)
+- [Usage Example](#-usage-example)
+- [Testing](#-testing)
+- [Author](#-author)
+- [Additional Resources](#-additional-resources)
 
 ---
 
@@ -58,37 +56,14 @@ This tool drastically reduces manual effort in data modeling and ensures consist
 
 ---
 
-## 🏗️ Architecture
+## 🛠️ Tech Stack
 
-The application follows a layered architecture:
-
-```
-┌─────────────────────────────────────────┐
-│          Main Entry Point               │
-│       (User Input & Workflow)           │
-└─────────────────────────────────────────┘
-              ↓
-┌─────────────────────────────────────────┐
-│         I/O Layer                       │
-│  • ExcelFileReader                      │
-│  • SqlGenerator                         │
-└─────────────────────────────────────────┘
-              ↓
-┌─────────────────────────────────────────┐
-│      Normalization Layer                │
-│  • FirstNormalizer (1NF)                │
-│  • SecondNormalizer (2NF)               │
-│  • CandidateKeyIdentifier               │
-└─────────────────────────────────────────┘
-              ↓
-┌─────────────────────────────────────────┐
-│      Heuristic Rules Engine             │
-│  • CurrencyHeuristic                    │
-│  • QuantityItemHeuristic                │
-│  • ValueUnitHeuristic                   │
-│  • ParentheticalAliasHeuristic          │
-└─────────────────────────────────────────┘
-```
+- **Language**: Java 21
+- **Build Tool**: Maven
+- **Libraries**: 
+  - Apache POI 5.4.1 (Excel Processing)
+  - Log4j 2.25.3 (Logging)
+- **Testing**: JUnit 5.10.1
 
 ---
 
@@ -140,7 +115,24 @@ cd Automated-Excel-DataModel-Tool
 
 There are **two ways** to install dependencies:
 
-#### Option A: Using Command Line 
+#### Option A: Using IntelliJ IDEA
+
+1. **Open the project** in IntelliJ IDEA
+2. IntelliJ will **automatically detect** the `pom.xml` file
+3. Wait for the IDE to **auto-import dependencies** (look for progress in the bottom-right corner)
+4. **Manual trigger** (if auto-import doesn't start):
+   - Right-click on `pom.xml`
+   - Select **"Maven"** → **"Reload Project"**
+   - Or click the **Maven Tool Window** (right sidebar) → **Reload All Maven Projects** button (↻)
+
+**Verify dependencies are loaded:**
+- Open the **Maven Tool Window** (View → Tool Windows → Maven)
+- Expand **Dependencies** to see:
+  - Apache POI (5.4.1)
+  - Log4j (2.25.3)
+  - JUnit Jupiter (5.10.1)
+
+#### Option B: Using Command Line
 
 Navigate to the project root directory (where `pom.xml` is located) and run:
 
@@ -159,28 +151,18 @@ mvn clean install
 [INFO] Total time: XX.XXX s
 ```
 
-#### Option B: Using IntelliJ IDEA
-
-1. **Open the project** in IntelliJ IDEA
-2. IntelliJ will **automatically detect** the `pom.xml` file
-3. Wait for the IDE to **auto-import dependencies** (look for progress in the bottom-right corner)
-4. **Manual trigger** (if auto-import doesn't start):
-   - Right-click on `pom.xml`
-   - Select **"Maven"** → **"Reload Project"**
-   - Or click the **Maven Tool Window** (right sidebar) → **Reload All Maven Projects** button (↻)
-
-**Verify dependencies are loaded:**
-- Open the **Maven Tool Window** (View → Tool Windows → Maven)
-- Expand **Dependencies** to see:
-  - Apache POI (5.4.1)
-  - Log4j (2.25.3)
-  - JUnit Jupiter (5.10.1)
-
 ---
 
 ## 🚀 Running the Application
 
-### Option A: Using Command Line
+### Option A: Using IntelliJ IDEA
+
+1. Navigate to `src/main/java/org/melisa/datamodel/Main.java`
+2. Right-click on the file or the `main` method
+3. Select **"Run 'Main.main()'"**
+4. Or use the **green play button** (▶) in the gutter next to `public static void main`
+
+### Option B: Using Command Line
 
 From the project root directory:
 
@@ -200,24 +182,6 @@ mvn package
 # Run the JAR
 java -jar target/Automated-Excel-DataModel-Tool-1.0-SNAPSHOT.jar
 ```
-
-### Option B: Using IntelliJ IDEA
-
-#### Method 1: Run from Main Class
-1. Navigate to `src/main/java/org/melisa/datamodel/Main.java`
-2. Right-click on the file or the `main` method
-3. Select **"Run 'Main.main()'"**
-4. Or use the **green play button** (▶) in the gutter next to `public static void main`
-
-#### Method 2: Create a Run Configuration
-1. Go to **Run** → **Edit Configurations...**
-2. Click **+** → **Application**
-3. Set:
-   - **Name**: `Automated Excel Tool`
-   - **Main class**: `org.melisa.datamodel.Main`
-   - **Working directory**: Project root
-4. Click **OK**
-5. Select the configuration from the dropdown and click **Run** (▶)
 
 ---
 
@@ -289,55 +253,16 @@ VALUES (101, 'John Doe', 'john@example.com');
 
 ---
 
-## 📁 Project Structure
-
-```
-Automated-Excel-DataModel-Tool/
-│
-├── src/
-│   ├── main/
-│   │   └── java/
-│   │       └── org/melisa/datamodel/
-│   │           ├── Main.java                        # Entry point
-│   │           ├── io/
-│   │           │   ├── ExcelFileReader.java         # Excel parsing
-│   │           │   └── SqlGenerator.java            # SQL script generation
-│   │           ├── model/
-│   │           │   └── DecomposedRelation.java      # Data model for 2NF relations
-│   │           └── normalization/
-│   │               ├── FirstNormalizer.java         # 1NF transformation
-│   │               ├── SecondNormalizer.java        # 2NF decomposition
-│   │               ├── CandidateKeyIdentifier.java  # Key detection
-│   │               └── heuristics/
-│   │                   ├── HeuristicRule.java       # Interface for heuristics
-│   │                   ├── CurrencyHeuristic.java
-│   │                   ├── QuantityItemHeuristic.java
-│   │                   ├── ValueUnitHeuristic.java
-│   │                   └── ParentheticalAliasHeuristic.java
-│   │
-│   └── test/
-│       └── java/
-│           └── org/melisa/datamodel/
-│               ├── io/
-│               │   ├── ExcelFileReaderTest.java
-│               │   └── SqlGeneratorTest.java
-│               └── normalization/
-│                   ├── FirstNormalizerTest.java
-│                   ├── SecondNormalizerTest.java
-│                   └── CandidateKeyIdentifierTest.java
-│
-├── pom.xml                # Maven configuration and dependencies
-├── README.md              # This file
-└── .gitignore             # Git ignore rules
-```
-
----
-
 ## 🧪 Testing
 
 The project includes comprehensive unit tests using **JUnit 5**.
 
 ### Run All Tests
+
+#### Via IntelliJ IDEA
+1. Right-click on `src/test/java` directory
+2. Select **"Run 'All Tests'"**
+3. Or use the **Maven Tool Window** → **Lifecycle** → Double-click **test**
 
 #### Via Command Line
 ```bash
@@ -345,18 +270,12 @@ The project includes comprehensive unit tests using **JUnit 5**.
 mvn test
 ```
 
-#### Via IntelliJ IDEA
-1. Right-click on `src/test/java` directory
-2. Select **"Run 'All Tests'"**
-3. Or use the **Maven Tool Window** → **Lifecycle** → Double-click **test**
-
 ### Test Coverage
 
 - **I/O Layer**: Tests for Excel reading and SQL generation
 - **Normalization**: Tests for 1NF and 2NF transformations
 - **Heuristics**: Tests for pattern recognition accuracy
 - **Edge Cases**: Null handling, duplicate column names, empty datasets
-
 
 ---
 
@@ -377,5 +296,3 @@ mvn test
 - [JUnit 5 User Guide](https://junit.org/junit5/docs/current/user-guide/)
 
 ---
-
-
