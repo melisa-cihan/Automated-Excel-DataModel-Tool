@@ -155,12 +155,27 @@ mvn clean install
 
 ## 🚀 Running the Application
 
+### Sample Excel Files
+
+The project includes **sample Excel files** in the `src/main/resources/` directory for testing:
+- `INVENTORY.xlsx` - Inventory management data
+- `Mitarbeiter.xlsx` - Employee data
+
 ### Option A: Using IntelliJ IDEA
 
 1. Navigate to `src/main/java/org/melisa/datamodel/Main.java`
 2. Right-click on the file or the `main` method
 3. Select **"Run 'Main.main()'"**
 4. Or use the **green play button** (▶) in the gutter next to `public static void main`
+5. When prompted for the Excel file path use one of the denormalized Excel files from the resources folder, enter:
+   ```
+   src/main/resources/INVENTORY.xlsx
+   ```
+   or
+   ```
+   src/main/resources/Mitarbeiter.xlsx
+   ```
+6. When prompted for the table name base, you can enter a name like `Inventory` or `Employee`, or leave it blank for the default
 
 ### Option B: Using Command Line
 
@@ -174,6 +189,15 @@ mvn compile
 mvn exec:java -Dexec.mainClass="org.melisa.datamodel.Main"
 ```
 
+When prompted for the Excel file path use one of the denormalized Excel files from the resources folder, enter:
+```
+src/main/resources/INVENTORY.xlsx
+```
+or
+```
+src/main/resources/Mitarbeiter.xlsx
+```
+
 **Alternative (after building JAR):**
 ```bash
 # Build the JAR file
@@ -181,6 +205,15 @@ mvn package
 
 # Run the JAR
 java -jar target/Automated-Excel-DataModel-Tool-1.0-SNAPSHOT.jar
+```
+
+When prompted for the Excel file path use one of the denormalized Excel files from the resources folder, enter:
+```
+src/main/resources/INVENTORY.xlsx
+```
+or
+```
+src/main/resources/Mitarbeiter.xlsx
 ```
 
 ---
